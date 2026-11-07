@@ -22,7 +22,7 @@ tap "DEPOIS" 1400 800; tap "FECHAR" 1400 800; sleep 2; shot menu
 tap "JOGAR" 400 500; sleep 3; shot fases
 tap "Primeira Flor" 420 200; sleep 4; shot partida
 tap "Operária" 1900 150; sleep 1; shot carta
-adb shell input tap 1185 540; sleep 2; shot colocou
+adb shell input tap 1248 540; sleep 2; shot colocou
 tap "FIM DO TURNO" 2000 980; sleep 5; shot turno2
 tap "FIM DO TURNO" 2000 980; sleep 5; shot turno3
 back; shot pausa
