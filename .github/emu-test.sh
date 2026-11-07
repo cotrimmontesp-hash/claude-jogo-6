@@ -1,10 +1,10 @@
 #!/bin/bash
 # Teste do APK no Android virtual: abre o jogo, toca nas telas e tira fotos (vão para o ramo ci-shots).
 mkdir -p shots
-adb install -r CidadeNasCostas.apk
+adb install -r VilaSelvagem.apk
 adb logcat -c
 adb shell settings put secure immersive_mode_confirmations confirmed
-adb shell monkey -p com.claude.cidadenascostas -c android.intent.category.LAUNCHER 1
+adb shell monkey -p com.claude.vilaselvagem -c android.intent.category.LAUNCHER 1
 sleep 30
 n=0
 shot(){ n=$((n+1)); adb exec-out screencap -p > "shots/$(printf %02d $n)-$1.png"; }
@@ -17,18 +17,18 @@ tap(){
 }
 back(){ adb shell input keyevent 4; sleep 2; }
 shot inicio
-tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot cidade
+tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot vila
 tap "RECOLHER" 2100 980; sleep 2; shot recolher
-adb shell input tap 1215 470; sleep 2; shot construir
+adb shell input tap 1250 560; sleep 2; shot construcao
 back
-tap "CRIATURA" 160 560; sleep 2; shot criatura; back
+tap "BICHOS" 160 560; sleep 2; shot bichos; back
 tap "MORADORES" 160 700; sleep 2; shot moradores; back
-tap "EXPEDIÇÃO" 160 420; sleep 2; shot expedicao
-tap "Lia" 400 600; sleep 1; tap "PARTIR!" 1100 900; sleep 2; shot evento
-tap "Montar uma ponte" 800 600; tap "Seguir com cuidado" 800 600; tap "Fazer um curativo" 800 600; sleep 1; shot evento2
-back; back
-tap "MAPA" 160 290; sleep 2; shot mapa
-adb shell input tap 750 760; sleep 2; shot mapa-colinas
-tap "VIAJAR" 2000 900; sleep 4; shot viajando
+tap "EXPEDIÇÃO" 160 420; sleep 2; shot mapa
+tap "Floresta Antiga" 800 380; sleep 2; shot mapa-floresta
+tap "MONTAR EXPEDIÇÃO" 2000 900; sleep 2; shot expedicao
+tap "Lia" 400 650; sleep 1; tap "Lobo 1" 900 650; sleep 1; shot equipe
+tap "PARTIR!" 1150 950; sleep 2; shot evento
+for k in 1 2 3 4; do adb shell input tap 800 640; sleep 1; done; shot fim
+tap "OK" 1170 900; sleep 2; shot volta
 adb logcat -d > shots/logcat.txt
 true

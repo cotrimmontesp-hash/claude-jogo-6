@@ -1,4 +1,4 @@
-/* Cidade nas Costas — app em React Native + Expo + TypeScript.
+/* Vila Selvagem — app em React Native + Expo + TypeScript.
    Do mesmo código saem o site/PWA (React Native Web, na Vercel) e os apps (EAS: APK/AAB e IPA). */
 import React, { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';

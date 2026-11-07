@@ -20,6 +20,7 @@ export const SFX: { [name: string]: (s: Synth, v: number) => void } = {
   good: (s) => { s.tone({ f: 784, t: .08, type: 'triangle', v: .15 }); s.tone({ f: 1046, t: .14, type: 'triangle', v: .15, dl: .08 }); },
   bad: (s) => { s.tone({ f: 330, f2: 220, t: .25, type: 'square', v: .1 }); },
   win: (s) => { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => s.tone({ f, t: .2, type: 'triangle', v: .18, dl: i * .1 })); },
+  level: (s) => { [523, 784, 1046].forEach((f, i) => s.tone({ f, t: .16, type: 'triangle', v: .16, dl: i * .08 })); },
   prize: (s) => { [659, 784, 988, 1319, 1568].forEach((f, i) => s.tone({ f, t: .2, type: 'triangle', v: .2, dl: i * .08 })); s.noise({ t: .4, v: .1, fq: 6000, type: 'highpass', dl: .35 }); },
 };
 

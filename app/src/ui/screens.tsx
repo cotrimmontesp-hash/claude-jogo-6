@@ -1,5 +1,5 @@
-/* Telas do Cidade nas Costas em React Native: barra de materiais, botões da cidade,
-   construir, criatura, moradores, expedição, mapa, prêmio diário e "enquanto você estava fora". */
+/* Telas da Vila Selvagem em React Native: barra de materiais, botões, construir/melhorar,
+   bichos, moradores, mapa das expedições, expedição, prêmio diário e "enquanto você estava fora". */
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Btn, C, Card, FONT, OText, Ov, Pix, XpBar, useGame, useInfo, useLay } from './kit';
@@ -12,7 +12,7 @@ export function Screens() {
     <>
       <Hud />
       {S.build && <BuildSheet />}
-      {S.creature && <Creature />}
+      {S.beasts && <Beasts />}
       {S.people && <People />}
       {S.exped && <Exped />}
       {S.map && <MapScreen />}
@@ -72,19 +72,18 @@ function Hud() {
             </View>
           ))}
         </ScrollView>
-        <View style={[dark, { paddingHorizontal: 10, paddingVertical: 3 }]}><B size={10} w="black" color={C.hint}>{'NÍVEL ' + c.lvl}</B><T size={13} lines={1}>{c.region}</T></View>
+        <View style={[dark, { paddingHorizontal: 10, paddingVertical: 3 }]}><B size={10} w="black" color={C.hint}>{'MORADORES ' + c.people + '/' + c.homes}</B><T size={13} lines={1}>{'Bichos ' + c.pets + '/' + c.pens}</T></View>
         <Btn label={c.sfx ? '🔊' : '🔇'} size="sm" kind="brown" padH={7} padV={4} onPress={() => game.act.toggleSfx()} a11y="Som" />
       </View>
       <View style={{ position: 'absolute', left: 6 + lay.ins.l, top: TOP_H + lay.ins.t + 2, width: LEFT_W - 12, gap: lay.short ? 3 : 6 }} pointerEvents="box-none">
-        <Btn label="MAPA" kind="blue" size="sm" onPress={() => game.act.open('map')} />
-        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('exped')} />{c.free > 0 && !c.traveling && <Badge n={c.free} />}</View>
-        <Btn label="CRIATURA" kind="green" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('creature')} />
+        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('map')} />{c.free > 0 && <Badge n={c.free} />}</View>
+        <Btn label="BICHOS" kind="green" size="sm" onPress={() => game.act.open('beasts')} />
         <Btn label="MORADORES" kind="purple" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('people')} />
         <View><Btn label="PRÊMIO" kind="gold" size="sm" onPress={() => game.act.openDaily()} />{c.dailyCan && <Badge />}</View>
       </View>
       <View style={{ position: 'absolute', left: LEFT_W + lay.ins.l, right: 6 + lay.ins.r, bottom: 6 + lay.ins.b, height: BOTTOM_H - 10, flexDirection: 'row', alignItems: 'center', gap: 8 }} pointerEvents="box-none">
         <View style={[panel, { flex: 1, paddingHorizontal: 10, paddingVertical: 4, justifyContent: 'center', minHeight: 40 }]} pointerEvents="none">
-          <B size={12} w="black" lines={2} color={c.hungry ? C.coral : C.ink}>{c.hungry ? 'Falta comida ou água! A cidade produz pela metade.' : c.moving ? 'Toque no espaço para onde quer levar a construção.' : c.goal}</B>
+          <B size={12} w="black" lines={2} color={c.hungry ? C.coral : C.ink}>{c.hungry ? 'Falta comida ou água! A vila produz pela metade.' : c.moving ? 'Toque no terreno para onde quer levar a construção.' : c.goal}</B>
         </View>
         <View><Btn label="RECOLHER" kind="play" onPress={() => game.act.collect()} />{c.ready > 0 && <Badge n={c.ready} />}</View>
       </View>
@@ -102,21 +101,33 @@ function BuildSheet() {
     <View style={[StyleSheet.absoluteFill]} pointerEvents="box-none">
       <Pressable style={StyleSheet.absoluteFill} onPress={() => game.act.closeBuild()} accessibilityLabel="Fechar" />
       <View style={[panel, { position: 'absolute', right: 8 + lay.ins.r, top: TOP_H + lay.ins.t, bottom: 8 + lay.ins.b, width: w, padding: 10 }]}>
-        <Head title={b.mode === 'info' ? b.name : 'CONSTRUIR'} onClose={() => game.act.closeBuild()} />
-        {b.mode === 'info' ? (
+        <Head title={b.mode === 'info' ? b.name : b.mode === 'locked' ? 'TERRENO' : 'CONSTRUIR'} onClose={() => game.act.closeBuild()} />
+        {b.mode === 'locked' ? (
+          <View style={{ gap: 8 }}>
+            <B>{b.block + ' ocupam este terreno. Limpe para poder construir aqui.'}</B>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><B w="black">Custa:</B><Bag list={b.cost} /></View>
+            <Btn label="LIMPAR TERRENO" kind={b.ok ? 'play' : 'brown'} onPress={() => game.act.clearPlot()} />
+          </View>
+        ) : b.mode === 'info' ? (
           <ScrollView contentContainerStyle={{ gap: 8 }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <Pix uri={b.img} w={80} />
-              <B style={{ flex: 1 }}>{b.desc}</B>
+              <Pix uri={b.img} w={92} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T size={16} color={C.gold} stroke={4}>{'★'.repeat(b.lvl) + '  nível ' + b.lvl + '/' + b.max}</T>
+                <B>{b.desc}</B>
+              </View>
             </View>
-            {b.rate.length > 0 && <View style={{ gap: 3 }}><B size={11} w="black" color={C.sub}>PRODUZ POR HORA AQUI</B><Bag list={b.rate} /></View>}
-            {b.adj && <B size={12} w="black" color={b.adj.ok ? '#3c8c2c' : C.sub}>{(b.adj.ok ? '✓ ' : '• ') + b.adj.txt}</B>}
+            {b.rate.length > 0 && <View style={{ gap: 3 }}><B size={11} w="black" color={C.sub}>PRODUZ POR HORA</B><Bag list={b.rate} /></View>}
             {b.stock.length > 0 && <View style={{ gap: 3 }}><B size={11} w="black" color={C.sub}>PRONTO PARA RECOLHER</B><Bag list={b.stock} /></View>}
+            {b.next ? <View style={[panel, { padding: 8, gap: 5, backgroundColor: '#f2f8e4' }]}>
+              <B w="black">{'Melhorar para o nível ' + (b.lvl + 1) + (b.nextProd ? ' (+' + b.nextProd + '% de produção)' : '')}</B>
+              <Bag list={b.next} />
+              <Btn label="MELHORAR" kind={b.nextOk ? 'play' : 'brown'} onPress={() => game.act.upgrade()} />
+            </View> : <B w="black" color="#3c8c2c">Nível máximo!</B>}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              <Btn label="MOVER" size="sm" kind="alt" onPress={() => game.act.startMove()} />
-              <Btn label="DESMONTAR" size="sm" kind="red" onPress={() => game.act.demolish()} />
+              <Btn label="MUDAR DE LUGAR" size="sm" fontSize={13} kind="alt" onPress={() => game.act.startMove()} />
+              <Btn label="DESMONTAR" size="sm" fontSize={13} kind="red" onPress={() => game.act.demolish()} />
             </View>
-            <B size={11} color={C.sub}>O espaço no casco é pouco: escolha bem o que levar. Desmontar devolve metade do material.</B>
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={{ gap: 6 }}>
@@ -124,7 +135,7 @@ function BuildSheet() {
             {b.list.map((x: any) => (
               <Pressable key={x.id} onPress={() => game.act.build(x.id)} accessibilityLabel={'Construir ' + x.name}>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', borderRadius: 12, borderWidth: 2.5, borderColor: C.ink, backgroundColor: x.ok ? '#fff' : '#efe2c8', padding: 5 }}>
-                  <Pix uri={x.img} w={50} />
+                  <Pix uri={x.img} w={56} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <T size={15} color={C.ink}>{x.name}</T>
                     <B size={10} lines={2}>{x.desc}</B>
@@ -144,38 +155,46 @@ function BuildSheet() {
   );
 }
 
-/* ---------- criatura ---------- */
-function Creature() {
-  const game = useGame();
-  const c = useInfo(() => game.info.creature());
+/* ---------- bichos ---------- */
+function Beasts() {
+  const game = useGame(), lay = useLay();
+  const b = useInfo(() => game.info.beasts());
+  const cw = Math.floor((Math.min(lay.W - 40, 800) - 64) / 3);
   return (
     <Ov dim>
-      <Card maxW={720} scroll={false}>
-        <Head title="A CRIATURA" onClose={() => game.act.closeScreen('creature')} />
-        <View style={{ flexDirection: 'row', gap: 12, alignSelf: 'stretch' }}>
-          <View style={[panel, { flex: 1, padding: 10, gap: 6, backgroundColor: '#f2f8e4' }]}>
-            <T size={18} color={C.ink}>{'Nível ' + c.lvl + ' de ' + c.max}</T>
-            {c.need > 0 ? <>
-              <XpBar pct={c.xp / c.need * 100} />
-              <B size={12}>{c.xp + ' / ' + c.need + ' para crescer · casco ' + c.grid + ' → ' + c.nextGrid}</B>
-              <Btn label={'ALIMENTAR (' + c.feed + ' de comida)'} kind="green" size="sm" fontSize={14} onPress={() => game.act.feed()} disabled={c.food < c.feed} />
-              <B size={11} color={C.sub}>Cuidadores fazem ela crescer mais rápido. Crescer abre mais espaço no casco e caminhos novos.</B>
-            </> : <B w="black" color="#3c8c2c">Tamanho máximo! Casco {c.grid}.</B>}
-          </View>
-          <View style={{ flex: 1.3, gap: 6 }}>
-            {!c.oficina && <B size={12} w="black" color={C.coral}>Habilidades precisam de uma Oficina na cidade.</B>}
-            {c.abilities.map((a: any) => (
-              <View key={a.id} style={[panel, { padding: 7, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: a.have ? '#d8f0c0' : '#fff' }]}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <T size={15} color={C.ink}>{a.name}</T>
-                  <B size={11}>{a.desc}</B>
-                  {!a.have && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Bag list={a.cost} size={18} /><B size={10} w="black" color={C.sub}>{'· nível ' + a.lvl}</B></View>}
+      <Card maxW={820} scroll={false}>
+        <Head title={'BICHOS  ' + b.list.length + '/' + b.pens} onClose={() => game.act.closeScreen('beasts')} />
+        <ScrollView style={{ maxHeight: lay.H * .68, alignSelf: 'stretch' }} contentContainerStyle={{ gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {b.list.map((p: any) => (
+              <View key={p.uid} style={[panel, { width: cw, padding: 7, gap: 3 }]}>
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  <Pix uri={p.img} w={70} />
+                  <View style={{ flex: 1 }}>
+                    <T size={15} color={C.ink} lines={1}>{p.name}</T>
+                    <B size={11} w="black" color={C.sub}>{'Nível ' + p.lvl + ' · ' + p.stage}</B>
+                    <B size={10} w="black" color="#3c8c2c">{p.traits.join(' · ')}</B>
+                  </View>
                 </View>
-                {a.have ? <T size={16} color="#3c8c2c">✓</T> : <Btn label="APRENDER" size="sm" fontSize={13} kind={a.ok ? 'play' : 'brown'} onPress={() => game.act.learn(a.id)} />}
+                {p.lvl < p.max ? <><XpBar pct={p.xp / p.need * 100} style={{ height: 9 }} /><B size={10}>{p.xp + '/' + p.need + (p.next ? '  ·  evolui no nível ' + p.next : '')}</B></> : <B size={11} w="black" color="#3c8c2c">Nível máximo!</B>}
+                <B size={10} w="black" color={C.blue}>{p.bonus}</B>
+                {p.rest > 0 ? <B size={10} w="black" color={C.coral}>{'Descansando ' + p.rest + 's'}</B> : null}
+                {p.lvl < p.max && <Btn label={'ALIMENTAR (' + p.feed + ' comida)'} size="sm" fontSize={12} padV={4} kind={b.food >= p.feed ? 'green' : 'brown'} onPress={() => game.act.feedPet(p.uid)} />}
               </View>
             ))}
           </View>
-        </View>
+          {b.wild.length > 0 && <View style={{ gap: 4 }}>
+            <B size={11} w="black" color={C.sub}>BICHOS QUE AINDA DÁ PARA DOMAR (expedição "Domar bicho")</B>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {b.wild.map((w: any) => (
+                <View key={w.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, borderWidth: 2, borderColor: C.ink, backgroundColor: '#efe2c8', padding: 4, width: cw }}>
+                  <Pix uri={w.img} w={40} style={{ opacity: .6 }} />
+                  <View style={{ flex: 1 }}><T size={12} color={C.ink}>{w.name}</T><B size={9}>{w.traits.join(' · ') + ' — em ' + w.where}</B></View>
+                </View>
+              ))}
+            </View>
+          </View>}
+        </ScrollView>
       </Card>
     </Ov>
   );
@@ -192,7 +211,7 @@ function People() {
         <Head title={'MORADORES  ' + p.list.length + '/' + p.homes} onClose={() => game.act.closeScreen('people')} />
         {p.wait > 0 && <B w="black" color={C.coral}>{p.wait + ' pessoa(s) esperando casa: construa uma Casa!'}</B>}
         <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'stretch' }}>
-          {p.roles.map((r: any) => <View key={r.k} style={{ flex: 1, borderRadius: 10, borderWidth: 2.5, borderColor: C.ink, backgroundColor: r.col, padding: 5 }}><T size={13}>{r.name.replace(/or$/, 'ore') + 's: ' + r.n}</T><B size={10} color="#fff">{r.desc}</B></View>)}
+          {p.roles.map((r: any) => <View key={r.k} style={{ flex: 1, borderRadius: 10, borderWidth: 2.5, borderColor: C.ink, backgroundColor: r.col, padding: 5 }}><T size={13}>{r.name + ': ' + r.n}</T><B size={10} color="#fff">{r.desc}</B></View>)}
         </View>
         <ScrollView style={{ maxHeight: lay.H * .5, alignSelf: 'stretch' }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {p.list.map((v: any) => (
@@ -218,80 +237,100 @@ function Exped() {
   const e = useInfo(() => game.info.exped());
   const [type, setType] = useState('coletar');
   const [team, setTeam] = useState<number[]>([]);
+  const [pets, setPets] = useState<number[]>([]);
   const toggle = (id: number) => setTeam(t => t.includes(id) ? t.filter(x => x !== id) : t.length >= 3 ? t : [...t, id]);
+  const togglePet = (id: number) => setPets(t => t.includes(id) ? t.filter(x => x !== id) : t.length >= 2 ? t : [...t, id]);
+  const chip = (on: boolean, busy: boolean) => ({ width: 82, borderRadius: 12, borderWidth: 3, borderColor: on ? C.coral : C.ink, backgroundColor: busy ? '#ddd0b8' : on ? '#ffe8c8' : '#fff', padding: 3, alignItems: 'center' as const, opacity: busy ? .6 : 1 });
   return (
     <Ov dim>
-      <Card maxW={760} scroll={false}>
+      <Card maxW={800} scroll={false}>
         <Head title={'EXPEDIÇÃO · ' + e.region} onClose={() => game.act.closeScreen('exped')} />
-        {e.traveling ? <B w="black">A criatura está viajando. Espere chegar para sair em expedição.</B>
-          : e.stage === 'pick' ? <>
-            <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'stretch' }}>
-              {e.types.map((t: any) => (
-                <Pressable key={t.id} style={{ flex: 1 }} onPress={() => { game.act.btnSound('click'); setType(t.id); }}>
-                  <View style={{ borderRadius: 12, borderWidth: 3, borderColor: type === t.id ? C.coral : C.ink, backgroundColor: type === t.id ? '#ffe8c8' : '#fff', padding: 6, minHeight: 64 }}>
-                    <T size={15} color={C.ink}>{t.name}</T><B size={10}>{t.desc}</B>
+        {e.stage === 'pick' ? <>
+          <View style={{ flexDirection: 'row', gap: 6, alignSelf: 'stretch' }}>
+            {e.types.map((t: any) => (
+              <Pressable key={t.id} style={{ flex: 1 }} onPress={() => { game.act.btnSound('click'); setType(t.id); }}>
+                <View style={{ borderRadius: 12, borderWidth: 3, borderColor: type === t.id ? C.coral : C.ink, backgroundColor: type === t.id ? '#ffe8c8' : '#fff', padding: 5, minHeight: 56 }}>
+                  <T size={14} color={C.ink}>{t.name}</T><B size={10}>{t.id === 'domar' ? (e.wildHere.length ? 'Aqui vivem: ' + e.wildHere.join(', ') + '.' : 'Nenhum bicho para domar aqui.') : t.desc}</B>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', flexWrap: 'wrap' }}>
+            <B size={11} w="black" color={C.sub}>TEM:</B><Bag list={e.loot} size={18} />
+            <View style={{ flex: 1 }} />
+            <B size={11} w="black" color={C.sub}>{'Gasta ' + e.food + ' comida e ' + e.water + ' água' + (e.waterCamel < e.water ? ' (com camelo: ' + e.waterCamel + ')' : '')}</B>
+            <B size={11} w="black" color={e.danger > 10 ? C.coral : C.sub}>{'Perigo ' + e.danger + '%' + (e.torre ? ' · Torre +' + e.torre + '%' : '')}</B>
+          </View>
+          {(e.need.length > 0 || e.beastLvl > 0) && <B size={11} w="black" color={C.coral} style={{ alignSelf: 'flex-start' }}>{'Precisa levar: ' + e.need.map((n: string) => 'bicho que ' + n.toLowerCase()).concat(e.beastLvl ? ['bicho nível ' + e.beastLvl] : []).join(' + ')}</B>}
+          <B size={11} w="black" color={C.sub} style={{ alignSelf: 'flex-start' }}>MORADORES (até 3) E BICHOS (até 2)</B>
+          <ScrollView horizontal style={{ alignSelf: 'stretch', flexGrow: 0 }} contentContainerStyle={{ gap: 5 }}>
+            {e.people.map((v: any) => (
+              <Pressable key={'v' + v.id} disabled={v.rest > 0} onPress={() => { game.act.btnSound('click'); toggle(v.id); }}>
+                <View style={chip(team.includes(v.id), v.rest > 0)}>
+                  <Pix uri={v.img} w={36} />
+                  <T size={11} color={C.ink} lines={1}>{v.name}</T>
+                  <B size={9} w="black" color={v.col} lines={1}>{v.roleName + ' ' + v.lvl}</B>
+                  {v.rest > 0 && <B size={9} color={C.coral}>{v.rest + 's'}</B>}
+                </View>
+              </Pressable>
+            ))}
+            <View style={{ width: 2, backgroundColor: C.ink, marginHorizontal: 3 }} />
+            {e.pets.map((p: any) => (
+              <Pressable key={'p' + p.uid} disabled={p.rest > 0} onPress={() => { game.act.btnSound('click'); togglePet(p.uid); }}>
+                <View style={chip(pets.includes(p.uid), p.rest > 0)}>
+                  <Pix uri={p.img} w={40} />
+                  <T size={11} color={C.ink} lines={1}>{p.name + ' ' + p.lvl}</T>
+                  <B size={8} w="black" color="#3c8c2c" lines={1}>{p.traits}</B>
+                  {p.rest > 0 && <B size={9} color={C.coral}>{p.rest + 's'}</B>}
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Btn label="◄ MAPA" kind="brown" size="sm" onPress={() => game.act.back()} />
+            <Btn label="PARTIR!" kind="play" disabled={!team.length} onPress={() => { game.act.expStart(type, team, pets); setTeam([]); setPets([]); }} start />
+          </View>
+        </>
+          : e.stage === 'event' ? <>
+            <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+              {e.team.map((m: any) => <Pix key={m.k} uri={m.img} w={36} />)}
+              <B w="black" color={C.sub}>{'  Evento ' + (e.i + 1) + ' de ' + e.n}</B>
+            </View>
+            <View style={[panel, { alignSelf: 'stretch', padding: 10, backgroundColor: e.fera ? '#ffe4dc' : '#fff' }]}><T size={19} color={C.ink} center>{e.txt}</T></View>
+            <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
+              {[e.a, e.b].map((o: any, k: number) => (
+                <Pressable key={k} style={{ flex: 1 }} onPress={() => game.act.expChoose(k)} accessibilityLabel={o.txt}>
+                  <View style={{ borderRadius: 14, borderWidth: 3, borderColor: C.ink, backgroundColor: k ? '#d8ecff' : '#fff0c8', padding: 8, gap: 3, minHeight: 74 }}>
+                    <T size={16} color={C.ink}>{o.txt}</T>
+                    {!!o.who && <B size={11} w="black" color={o.has ? '#3c8c2c' : C.sub}>{(o.has ? '✓ ' : '') + 'melhor com ' + o.who}</B>}
+                    <B size={11} w="black" color={C.sub}>{'Chance: ' + o.pct + '%'}</B>
                   </View>
                 </Pressable>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' }}>
-              <B size={11} w="black" color={C.sub}>A REGIÃO TEM:</B><Bag list={e.loot} size={20} />
-              <View style={{ flex: 1 }} />
-              <B size={11} w="black" color={e.danger > 10 ? C.coral : C.sub}>{'Perigo ' + e.danger + '%' + (e.torre ? ' · Torre +10%' : '')}</B>
-            </View>
-            <B size={11} w="black" color={C.sub} style={{ alignSelf: 'flex-start' }}>ESCOLHA ATÉ 3 MORADORES</B>
-            <ScrollView horizontal style={{ alignSelf: 'stretch', flexGrow: 0 }} contentContainerStyle={{ gap: 6 }}>
-              {e.people.map((v: any) => {
-                const on = team.includes(v.id), busy = v.rest > 0;
-                return (
-                  <Pressable key={v.id} disabled={busy} onPress={() => { game.act.btnSound('click'); toggle(v.id); }}>
-                    <View style={{ width: 86, borderRadius: 12, borderWidth: 3, borderColor: on ? C.coral : C.ink, backgroundColor: busy ? '#ddd0b8' : on ? '#ffe8c8' : '#fff', padding: 4, alignItems: 'center', opacity: busy ? .6 : 1 }}>
-                      <Pix uri={v.img} w={40} />
-                      <T size={12} color={C.ink} lines={1}>{v.name}</T>
-                      <B size={9} w="black" color={v.col}>{v.roleName + ' ' + v.lvl}</B>
-                      {busy && <B size={9} color={C.coral}>{v.rest + 's'}</B>}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <Btn label="PARTIR!" kind="play" disabled={!team.length} onPress={() => { game.act.expStart(type, team); setTeam([]); }} start />
+            {e.log.map((l: string, i: number) => <B key={i} size={11} color={l.startsWith('✓') ? '#3c8c2c' : C.coral}>{l}</B>)}
           </>
-            : e.stage === 'event' ? <>
-              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                {e.team.map((m: any) => <Pix key={m.name} uri={m.img} w={34} />)}
-                <B w="black" color={C.sub}>{'Evento ' + (e.i + 1) + ' de ' + e.n}</B>
-              </View>
-              <View style={[panel, { alignSelf: 'stretch', padding: 10, backgroundColor: e.fera ? '#ffe4dc' : '#fff' }]}><T size={19} color={C.ink} center>{e.txt}</T></View>
-              <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
-                {[e.a, e.b].map((o: any, k: number) => (
-                  <Pressable key={k} style={{ flex: 1 }} onPress={() => game.act.expChoose(k)} accessibilityLabel={o.txt}>
-                    <View style={{ borderRadius: 14, borderWidth: 3, borderColor: C.ink, backgroundColor: k ? '#d8ecff' : '#fff0c8', padding: 8, gap: 3, minHeight: 74 }}>
-                      <T size={16} color={C.ink}>{o.txt}</T>
-                      {!!o.role && <B size={11} w="black" color={o.has ? '#3c8c2c' : C.sub}>{(o.has ? '✓ ' : '') + 'melhor com ' + o.role}</B>}
-                      <B size={11} w="black" color={C.sub}>{'Chance: ' + o.pct + '%'}</B>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-              {e.log.map((l: string, i: number) => <B key={i} size={11} color={l.startsWith('✓') ? '#3c8c2c' : C.coral}>{l}</B>)}
-            </>
-              : <>
-                <T size={22} stroke={5} color={e.reward.score >= 2 ? C.gold : '#fff'} center>{e.reward.score >= 2 ? 'Expedição incrível!' : e.reward.score === 1 ? 'Voltaram com algumas coisas' : 'Foi difícil…'}</T>
-                {e.log.map((l: string, i: number) => <B key={i} size={12} color={l.startsWith('✓') ? '#3c8c2c' : C.coral}>{l}</B>)}
-                {e.reward.loot.length > 0 && <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><B w="black">Trouxeram:</B><Bag list={e.reward.loot} size={26} /></View>}
-                {e.reward.full && <B size={11} w="black" color={C.coral}>Parte ficou para trás: os depósitos estavam cheios.</B>}
-                {!!e.reward.person && <B w="black" color="#3c8c2c">{'Encontraram alguém: um ' + e.reward.person.toLowerCase() + '!'}</B>}
-                {e.reward.crXP > 0 && <B w="black" color="#3c8c2c">{'A criatura ganhou +' + e.reward.crXP + ' de crescimento com o que acharam.'}</B>}
-                {e.reward.ups.map((u: string) => <B key={u} w="black" color={C.blue}>{u}</B>)}
-                <Btn label="OK" kind="play" onPress={() => game.act.expEnd()} />
-              </>}
+            : <>
+              <T size={22} stroke={5} color={e.reward.score >= 2 ? C.gold : '#fff'} center>{e.reward.score >= 2 ? 'Expedição incrível!' : e.reward.score === 1 ? 'Voltaram com algumas coisas' : 'Foi difícil…'}</T>
+              {e.log.map((l: string, i: number) => <B key={i} size={12} color={l.startsWith('✓') ? '#3c8c2c' : C.coral}>{l}</B>)}
+              {!!e.reward.discovered && <View style={[panel, { padding: 8, backgroundColor: '#fff4c8', alignSelf: 'stretch', gap: 2 }]}>
+                <T size={15} color={C.ink}>{'Descobriram ' + e.reward.discovered.name + '!'}</T>
+                {e.reward.discovered.blue.length > 0 && <B w="black" color="#3c8c2c">{'Planta nova: ' + e.reward.discovered.blue.join(', ')}</B>}
+                {e.reward.discovered.beasts.length > 0 && <B w="black" color={C.blue}>{'Bichos da região: ' + e.reward.discovered.beasts.join(', ')}</B>}
+              </View>}
+              {e.reward.loot.length > 0 && <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><B w="black">Trouxeram:</B><Bag list={e.reward.loot} size={26} /></View>}
+              {e.reward.full && <B size={11} w="black" color={C.coral}>Parte ficou para trás: os depósitos estavam cheios.</B>}
+              {!!e.reward.newPet && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Pix uri={e.reward.petImg} w={60} /><T size={17} color="#3c8c2c">{'Domaram um ' + e.reward.newPet + '!'}</T></View>}
+              {!!e.reward.person && <B w="black" color="#3c8c2c">{'Encontraram alguém: um ' + e.reward.person.toLowerCase() + '!'}</B>}
+              {e.reward.ups.map((u: string) => <B key={u} w="black" color={C.blue}>{u}</B>)}
+              <Btn label="OK" kind="play" onPress={() => game.act.expEnd()} />
+            </>}
       </Card>
     </Ov>
   );
 }
 
-/* ---------- mapa ---------- */
+/* ---------- mapa (escolher para onde ir) ---------- */
 function MapScreen() {
   const game = useGame(), lay = useLay();
   const m = useInfo(() => game.info.map());
@@ -302,7 +341,7 @@ function MapScreen() {
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3c8cc8' }]}>
       <View style={{ position: 'absolute', left: 16 + lay.ins.l, right: 16 + lay.ins.r, top: 8 + lay.ins.t }}>
-        <Head title="MAPA DO MUNDO" onClose={() => game.act.closeScreen('map')} />
+        <Head title="PARA ONDE VAMOS?" onClose={() => game.act.closeScreen('map')} />
       </View>
       <View style={{ position: 'absolute', left: 20 + lay.ins.l, top: 56 + lay.ins.t, width: mw, height: mh }}>
         {m.lines.map((l: any, i: number) => {
@@ -311,14 +350,14 @@ function MapScreen() {
           return <View key={i} style={{ position: 'absolute', left: (a.x + b.x) / 2 - len / 2, top: (a.y + b.y) / 2 - 2, width: len, height: 4, backgroundColor: 'rgba(255,255,255,.55)', borderRadius: 2, transform: [{ rotate: ang + 'rad' }] }} />;
         })}
         {m.nodes.map((n: any) => {
-          const p = P(n); const sz = n.here ? 58 : 48;
+          const p = P(n); const sz = n.home ? 58 : 48;
           return (
             <Pressable key={n.id} onPress={() => { game.act.btnSound('click'); setPick(n.id); }} style={{ position: 'absolute', left: p.x - sz / 2, top: p.y - sz / 2, alignItems: 'center', width: sz }} accessibilityLabel={n.name}>
-              <View style={{ width: sz, height: sz, borderRadius: sz / 2, borderWidth: 3, borderColor: n.here ? C.gold : pick === n.id ? '#fff' : C.ink, backgroundColor: n.seen ? n.col : '#8c9cac', alignItems: 'center', justifyContent: 'center', opacity: n.seen ? 1 : .7 }}>
+              <View style={{ width: sz, height: sz, borderRadius: sz / 2, borderWidth: 3, borderColor: pick === n.id ? '#fff' : n.home ? C.gold : C.ink, backgroundColor: n.seen ? n.col : '#8c9cac', alignItems: 'center', justifyContent: 'center', opacity: n.seen ? 1 : .7 }}>
                 <View style={{ width: sz * .5, height: sz * .5, borderRadius: sz, backgroundColor: n.seen ? n.col2 : '#6c7c8c' }} />
-                {n.here && <View style={{ position: 'absolute' }}><T size={20} stroke={4}>🐢</T></View>}
-                {!n.visited && n.seen && n.miss.length > 0 && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>🔒</T></View>}
-                {n.target && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>⏳</T></View>}
+                {n.home && <View style={{ position: 'absolute' }}><T size={20} stroke={4}>🏠</T></View>}
+                {n.seen && !n.explored && n.miss.length > 0 && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>🔒</T></View>}
+                {n.seen && !n.explored && !n.miss.length && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>❓</T></View>}
               </View>
               <View style={{ width: 120, alignItems: 'center', marginTop: 2 }}><T size={11} stroke={3} center lines={1}>{n.name}</T></View>
             </Pressable>
@@ -326,17 +365,14 @@ function MapScreen() {
         })}
       </View>
       {sel && (
-        <View style={[panel, { position: 'absolute', right: 12 + lay.ins.r, bottom: 10 + lay.ins.b, width: Math.min(330, lay.W * .42), padding: 10, gap: 4 }]}>
-          <T size={17} color={C.ink}>{sel.name}</T>
+        <View style={[panel, { position: 'absolute', right: 12 + lay.ins.r, bottom: 10 + lay.ins.b, width: Math.min(340, lay.W * .42), padding: 10, gap: 4 }]}>
+          <T size={17} color={C.ink}>{sel.name + (sel.explored ? '' : sel.seen ? '  (inexplorado)' : '')}</T>
           <B size={12}>{sel.desc}</B>
-          {sel.here ? <B w="black" color="#3c8c2c">A criatura está aqui.</B>
-            : m.traveling ? <B w="black" color={C.sub}>Já estamos viajando.</B>
-              : !sel.adj ? <B w="black" color={C.sub}>{sel.seen ? 'Não tem caminho direto de onde estamos.' : 'Explore regiões vizinhas para descobrir.'}</B>
-                : sel.miss.length ? <B w="black" color={C.coral}>{'Falta: ' + sel.miss.join(', ')}</B>
-                  : <>
-                    <B size={12} w="black">{'Viagem: ' + sel.cost.dur + 's · gasta ' + sel.cost.food + ' de comida e ' + sel.cost.water + ' de água'}</B>
-                    <Btn label="VIAJAR" kind={sel.okCost ? 'play' : 'brown'} onPress={() => game.act.travel(sel.id)} />
-                  </>}
+          {sel.seen && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><B size={11} w="black" color={C.sub}>TEM:</B><Bag list={sel.loot} size={18} /></View>}
+          {sel.beasts.length > 0 && <B size={11} w="black" color={C.blue}>{'Bichos: ' + sel.beasts.join(', ')}</B>}
+          {!sel.seen ? <B w="black" color={C.sub}>Explore as regiões vizinhas para descobrir.</B>
+            : sel.miss.length ? <B w="black" color={C.coral}>{'Falta: ' + sel.miss.join(' e ')}</B>
+              : <Btn label="MONTAR EXPEDIÇÃO" kind="play" onPress={() => game.act.pickRegion(sel.id)} />}
         </View>
       )}
     </View>

@@ -24,6 +24,8 @@ export interface Ctx2D {
   quadraticCurveTo(cx: number, cy: number, x: number, y: number): void;
   rotate(a: number): void;
   clip?(): void;
+  setLineDash?(d: number[]): void;
+  createRadialGradient?(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): any;
   strokeRect?(x: number, y: number, w: number, h: number): void;
   lineJoin: string; lineCap: string; font: string; textAlign: string; textBaseline: string;
   fillText(s: string, x: number, y: number): void;
