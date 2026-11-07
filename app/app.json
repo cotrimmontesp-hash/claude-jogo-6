@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "Colmeia de Guerra",
+    "slug": "colmeia-guerra",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#2a1a0c",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2a1a0c"
+    },
+    "androidStatusBar": {
+      "hidden": true,
+      "backgroundColor": "#2a1a0c"
+    },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "backgroundColor": "#2a1a0c"
+    },
+    "android": {
+      "package": "com.claude.colmeiaguerra",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f8b820"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.claude.colmeiaguerra",
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "web": {
+      "name": "Colmeia de Guerra",
+      "shortName": "Colmeia de Guerra",
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "themeColor": "#2a1a0c",
+      "backgroundColor": "#2a1a0c"
+    },
+    "plugins": [
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "LANDSCAPE"
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "node_modules/@expo-google-fonts/lilita-one/LilitaOne_400Regular.ttf",
+            "node_modules/@expo-google-fonts/nunito/Nunito_700Bold.ttf",
+            "node_modules/@expo-google-fonts/nunito/Nunito_800ExtraBold.ttf",
+            "node_modules/@expo-google-fonts/nunito/Nunito_900Black.ttf"
+          ]
+        }
+      ]
+    ]
+  }
+}
