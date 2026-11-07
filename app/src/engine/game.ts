@@ -84,7 +84,7 @@ export function createGame(pf: Platform) {
     return out;
   }
   const hungry = () => (save.res.comida || 0) <= 0 || (save.res.agua || 0) <= 0;
-  const eatRate = () => save.vil.length * 2, drinkRate = () => save.vil.length * 1.5;
+  const eatRate = () => save.vil.length * 6, drinkRate = () => save.vil.length * 4;
   function totalRates() { const t: Bag = {}; for (let i = 0; i < save.grid.length; i++) { const r = rateOf(i); for (const k in r) t[k as Res] = (t[k as Res] || 0) + r[k as Res]!; } return t; }
 
   /* ---------- tempo passando (também o tempo fora do jogo) ---------- */

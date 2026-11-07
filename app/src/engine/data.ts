@@ -9,24 +9,24 @@ export const RES_INFO: { [k: string]: { name: string; col: string } } = {
   agua: { name: 'Água', col: '#3ca8f0' }, metal: { name: 'Metal', col: '#6c7c94' }, escamas: { name: 'Escamas', col: '#30c0a8' }, cristal: { name: 'Cristal', col: '#c070f0' },
 };
 export type Bag = Partial<Record<Res, number>>;
-export const BASE_CAP = 80;
+export const BASE_CAP = 150;
 
 /* ---------- construções (cada uma ocupa 1 espaço do casco) ---------- */
 export interface Building { id: string; name: string; cost: Bag; prod?: Bag; cap?: Bag; homes?: number; desc: string; from: number; adj?: { with: string; bonus: number; txt: string } }
 /** `from`: região onde a planta é descoberta (0 = já começa sabendo) */
 export const BUILDINGS: Building[] = [
   { id: 'casa', name: 'Casa', cost: { madeira: 10 }, homes: 2, from: 0, desc: 'Abriga 2 moradores.' },
-  { id: 'roca', name: 'Roça', cost: { madeira: 8 }, prod: { comida: 40 }, from: 0, desc: 'Planta comida. Rende menos no deserto.', adj: { with: 'poco', bonus: .3, txt: '+30% ao lado de um Poço' } },
-  { id: 'serraria', name: 'Serraria', cost: { madeira: 6, pedra: 4 }, prod: { madeira: 30 }, from: 0, desc: 'Corta madeira. Rende muito na floresta.' },
-  { id: 'poco', name: 'Poço', cost: { pedra: 10 }, prod: { agua: 30 }, cap: { agua: 60 }, from: 0, desc: 'Junta água e guarda mais. Rende mais na costa.' },
-  { id: 'armazem', name: 'Armazém', cost: { madeira: 20, pedra: 10 }, cap: { comida: 80, madeira: 80, pedra: 80, agua: 40, metal: 40, escamas: 40, cristal: 40 }, from: 0, desc: 'Guarda mais de tudo.' },
-  { id: 'pedreira', name: 'Pedreira', cost: { madeira: 15 }, prod: { pedra: 25 }, from: 2, desc: 'Tira pedra. Rende muito nas colinas e montanhas.', adj: { with: 'oficina', bonus: .2, txt: '+20% ao lado da Oficina' } },
+  { id: 'roca', name: 'Roça', cost: { madeira: 8 }, prod: { comida: 200 }, from: 0, desc: 'Planta comida. Rende menos no deserto.', adj: { with: 'poco', bonus: .3, txt: '+30% ao lado de um Poço' } },
+  { id: 'serraria', name: 'Serraria', cost: { madeira: 6, pedra: 4 }, prod: { madeira: 150 }, from: 0, desc: 'Corta madeira. Rende muito na floresta.' },
+  { id: 'poco', name: 'Poço', cost: { pedra: 10 }, prod: { agua: 150 }, cap: { agua: 100 }, from: 0, desc: 'Junta água e guarda mais. Rende mais na costa.' },
+  { id: 'armazem', name: 'Armazém', cost: { madeira: 20, pedra: 10 }, cap: { comida: 150, madeira: 150, pedra: 150, agua: 100, metal: 60, escamas: 60, cristal: 60 }, from: 0, desc: 'Guarda mais de tudo.' },
+  { id: 'pedreira', name: 'Pedreira', cost: { madeira: 15 }, prod: { pedra: 125 }, from: 2, desc: 'Tira pedra. Rende muito nas colinas e montanhas.', adj: { with: 'oficina', bonus: .2, txt: '+20% ao lado da Oficina' } },
   { id: 'oficina', name: 'Oficina', cost: { madeira: 25, pedra: 15 }, from: 2, desc: 'Necessária para a criatura aprender habilidades. Engenheiros constroem mais barato.' },
   { id: 'torre', name: 'Torre de Vigia', cost: { madeira: 15, pedra: 20 }, from: 1, desc: 'Expedições mais seguras: +10% de chance em cada escolha.' },
-  { id: 'estufa', name: 'Estufa', cost: { pedra: 20, agua: 20 }, prod: { comida: 30 }, from: 3, desc: 'Comida em qualquer lugar, até no deserto.' },
-  { id: 'forja', name: 'Forja', cost: { pedra: 30, madeira: 20 }, prod: { metal: 12 }, from: 5, desc: 'Faz metal. Rende o dobro nas montanhas.', adj: { with: 'pedreira', bonus: .25, txt: '+25% ao lado da Pedreira' } },
+  { id: 'estufa', name: 'Estufa', cost: { pedra: 20, agua: 20 }, prod: { comida: 150 }, from: 3, desc: 'Comida em qualquer lugar, até no deserto.' },
+  { id: 'forja', name: 'Forja', cost: { pedra: 30, madeira: 20 }, prod: { metal: 60 }, from: 5, desc: 'Faz metal. Rende o dobro nas montanhas.', adj: { with: 'pedreira', bonus: .25, txt: '+25% ao lado da Pedreira' } },
   { id: 'farol', name: 'Farol', cost: { madeira: 30, escamas: 10 }, from: 6, desc: 'As viagens ficam 30% mais curtas.' },
-  { id: 'jardim', name: 'Jardim de Cristal', cost: { pedra: 20, cristal: 10 }, prod: { cristal: 6 }, from: 7, desc: 'Cultiva cristais devagar.' },
+  { id: 'jardim', name: 'Jardim de Cristal', cost: { pedra: 20, cristal: 10 }, prod: { cristal: 30 }, from: 7, desc: 'Cultiva cristais devagar.' },
 ];
 export const BUILD: { [k: string]: Building } = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
 
