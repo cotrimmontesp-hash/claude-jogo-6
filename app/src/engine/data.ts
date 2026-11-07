@@ -22,8 +22,8 @@ export function turretSlots(lv: number) {
   return out.slice(0, n);
 }
 export const MAX_SLOTS = 8;
-/** sobreviventes resgatados viram ajudantes; quantos cabem por nível do centro */
-export const ALLY_MAX = [2, 4, 6, 8];
+/** sobreviventes resgatados viram ajudantes (no máximo 2; não existem no online) */
+export const ALLY_MAX = [2, 2, 2, 2];
 
 export interface Gun { id: string; name: string; dmg: number; rate: number; range: number; pellets: number; spread: number; price: number; desc: string; col: string }
 export const GUNS: Gun[] = [

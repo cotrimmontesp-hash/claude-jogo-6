@@ -109,7 +109,7 @@ export function createGame(pf: Platform) {
   function teamToast(s: string) { toast(s); if (NET.host) hostBroadcast({ t: 'ev', toast: s }); }
   function teamSfx(n: string) { sfx(n); if (NET.host) hostBroadcast({ t: 'ev', sfx: n }); }
   function resetBase() { walls = SEGS.map(() => WALL_LV[B.wallLv].hp); hq = hqMax(); for (const p of players()) { p.hp = p.max; p.dead = 0; } }
-  const allyCount = () => Math.min(save.allies, ALLY_MAX[B.lv]);
+  const allyCount = () => online() ? 0 : Math.min(save.allies, ALLY_MAX[B.lv]);
 
   function startWave() {
     if (phase !== 'prep') return;
@@ -120,7 +120,7 @@ export function createGame(pf: Platform) {
     emit();
   }
   function spawnSurvivor() {
-    if (surv.length >= 3) return;
+    if (online() || surv.length >= 3) return;
     for (let k = 0; k < 10; k++) {
       const a = Math.random() * TAU, r = BASE.half + 240 + Math.random() * 220;
       const x = clamp(BASE.x + Math.cos(a) * r * 1.2, 80, WORLD.w - 80), y = clamp(BASE.y + Math.sin(a) * r, 100, WORLD.h - 60);
@@ -321,10 +321,10 @@ export function createGame(pf: Platform) {
         if (d > 46) { const sp = 165 * dt; s.x += dx / d * Math.min(sp, d - 46); s.y += dy / d * Math.min(sp, d - 46); }
         if (inBase(s.x, s.y, 20)) {
           s.hp = -999; save.saved = (save.saved | 0) + 1;
-          const room = save.allies < ALLY_MAX[ALLY_MAX.length - 1]; if (room) save.allies++;
+          const room = save.allies < ALLY_MAX[B.lv]; if (room) save.allies++;
           const reward = 30 + save.wave * 5; credit(s.lead, reward);
           floats.push({ x: s.x, y: s.y - 50, s: '+' + reward, c: '#ffd040', t: 1.4, sz: 20 });
-          teamSfx('rescue'); teamToast('Resgatado! +' + reward + ' moedas' + (allyCount() < save.allies ? ' (melhore o centro para caber mais ajudantes)' : ' e mais um ajudante na base.'));
+          teamSfx('rescue'); teamToast('Resgatado! +' + reward + ' moedas' + (room ? ' e mais um ajudante na base.' : ' (a base já tem 2 ajudantes).'));
           persist();
         }
       }
@@ -398,7 +398,7 @@ export function createGame(pf: Platform) {
     const tryCode = (left: number) => {
       const code = String(1000 + Math.floor(Math.random() * 9000));
       const p = new Peer(ROOMP + code); NET.peer = p;
-      p.on('open', () => { NET.host = true; NET.code = code; NET.busy = false; NET.status = ''; pl.id = 'h'; roster(); sfx('coin'); });
+      p.on('open', () => { NET.host = true; NET.code = code; NET.busy = false; NET.status = ''; pl.id = 'h'; surv = []; allyFx = []; roster(); sfx('coin'); });
       p.on('error', (e: any) => {
         if (e && e.type === 'unavailable-id' && left > 0) { tryCode(left - 1); return; }
         if (NET.peer !== p) return;
@@ -592,7 +592,7 @@ export function createGame(pf: Platform) {
       });
       items.push({ y: HQ.y, f: () => shelter(g, HQ.x, HQ.y, clock, hq / hqMaxNow(), B.abrigo + 1, B.lv) });
       SLOTS.forEach((s, i) => { items.push({ y: s.y, f: () => drawTurret(g, s.x, s.y, B.turrets[i], tur[i].ang, clock, tur[i].flash) }); });
-      const na = NET.guest ? allyFx.length : allyCount();
+      const na = allyCount();
       for (let i = 0; i < na; i++) { const p = allyPos(i, na), a = allyFx[i] || { aim: 0, flash: 0 }; items.push({ y: p.y, f: () => civil(g, p.x, p.y, 1.2, clock + i, i * 37 + 3, 'ally', a.aim, a.flash) }); }
       for (const s of surv) if (vis(s.x, s.y)) items.push({ y: s.y, f: () => {
         civil(g, s.x, s.y, 1.25, clock + s.id, s.seed, s.mode === 'help' ? 'help' : 'follow', 0, 0);
@@ -732,7 +732,7 @@ export function createGame(pf: Platform) {
       hp: Math.max(0, Math.ceil(pl.hp)), maxHp: pl.max, hq: Math.max(0, Math.ceil(hq)), hqMax: hqMaxNow(), dead: Math.ceil(pl.dead),
       nade: nadeCd > 0 ? Math.ceil(nadeCd) : 0, sfx: !!save.sfx, mus: !!save.mus, coinImg: iconImage('coin', 'c', 40),
       next: hs ? hs.next : waveSpec(save.wave).list.length, boss: hs ? hs.boss : save.wave % 5 === 0, kills: save.kills,
-      online: online(), host: NET.host, guest: NET.guest, code: NET.code, people: players().length, allies: NET.guest ? allyFx.length : allyCount(), baseName: BASE_LV[B.lv].name, sos: surv.filter(s => s.mode === 'help').length,
+      online: online(), host: NET.host, guest: NET.guest, code: NET.code, people: players().length, allies: allyCount(), baseName: BASE_LV[B.lv].name, sos: surv.filter(s => s.mode === 'help').length,
     };
   }
   function shopInfo() {
@@ -740,7 +740,7 @@ export function createGame(pf: Platform) {
       tab: shopTab, coins: save.coins, coinImg: iconImage('coin', 'c', 40), guest: NET.guest,
       guns: GUNS.map(G => ({ id: G.id, name: G.name, desc: G.desc, price: G.price, owned: save.guns.includes(G.id), on: save.gun === G.id, ok: save.coins >= G.price, img: iconImage('gun', G.id, 96), stats: 'Dano ' + G.dmg + (G.pellets > 1 ? ' x' + G.pellets : '') + ' · ' + G.rate + ' tiros/s' })),
       upg: UPGRADES.map(U => { const lv = save.upg[U.id] || 0; return { id: U.id, name: U.name, desc: U.desc, lvl: lv, max: U.max, price: lv < U.max ? upgPrice(U, lv) : 0, ok: lv < U.max && save.coins >= upgPrice(U, lv), img: iconImage('upg', U.id, 80) }; }),
-      centro: { lv: B.lv, name: BASE_LV[B.lv].name, next: B.lv + 1 < BASE_LV.length ? { name: BASE_LV[B.lv + 1].name, price: BASE_LV[B.lv + 1].price, ok: save.coins >= BASE_LV[B.lv + 1].price, slots: BASE_LV[B.lv + 1].slots, allies: ALLY_MAX[B.lv + 1] } : null, img: iconImage('shelter', 's' + B.lv, 96, B.lv) },
+      centro: { lv: B.lv, name: BASE_LV[B.lv].name, next: B.lv + 1 < BASE_LV.length ? { name: BASE_LV[B.lv + 1].name, price: BASE_LV[B.lv + 1].price, ok: save.coins >= BASE_LV[B.lv + 1].price, slots: BASE_LV[B.lv + 1].slots } : null, img: iconImage('shelter', 's' + B.lv, 96, B.lv) },
       wall: { lv: B.wallLv, name: WALL_LV[B.wallLv].name, hp: WALL_LV[B.wallLv].hp, img: iconImage('wall', 'w', 96, B.wallLv), next: B.wallLv + 1 < WALL_LV.length ? { name: WALL_LV[B.wallLv + 1].name, hp: WALL_LV[B.wallLv + 1].hp, price: WALL_LV[B.wallLv + 1].price, ok: save.coins >= WALL_LV[B.wallLv + 1].price } : null },
       turrets: SLOTS.map((_, i) => { const lv = B.turrets[i]; return { i, lvl: lv, max: TURRET_LV.length - 1, price: lv < TURRET_LV.length - 1 ? TURRET_LV[lv].price : 0, ok: lv < TURRET_LV.length - 1 && save.coins >= TURRET_LV[lv].price, img: iconImage('turret', 't', 80, Math.max(1, lv)), dmg: TURRET_LV[Math.min(TURRET_LV.length - 1, lv + 1)].dmg }; }),
     };

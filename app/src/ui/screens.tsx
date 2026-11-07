@@ -57,7 +57,7 @@ function Hud() {
         </View>
         {!lay.narrow && <View style={[dark, { paddingHorizontal: 8, paddingVertical: 3 }]} pointerEvents="none">
           <T size={12} color="#9cf080">{h.baseName}</T>
-          <B size={10} w="black" color="#fff" style={{ marginTop: -2 }}>{'Ajudantes: ' + h.allies}</B>
+          <B size={10} w="black" color="#fff" style={{ marginTop: -2 }}>{h.online ? 'Online' : 'Ajudantes: ' + h.allies + '/2'}</B>
         </View>}
         <Btn label={h.online ? (h.host ? 'SALA ' + h.code + ' · ' + h.people : 'ONLINE · ' + h.people) : 'ONLINE'} size="sm" kind={h.online ? 'blue' : 'purple'} fontSize={13} padH={8} padV={4} onPress={() => game.act.openOnline()} />
         <View style={{ flex: 1 }} />
@@ -83,7 +83,7 @@ function Hud() {
       </View>
       {prep && h.wave === 1 && h.kills === 0 && (
         <View style={[panel, { position: 'absolute', left: 10 + lay.ins.l, bottom: 10 + lay.ins.b, maxWidth: Math.min(330, lay.W * .4), padding: 8 }]} pointerEvents="none">
-          <B size={12} w="black">Arraste o dedo para andar e segure ATIRAR (a mira vai sozinha no zumbi mais perto). Toque no + do chão para pôr uma torre e salve quem pede SOCORRO!</B>
+          <B size={12} w="black">Arraste o dedo para andar e segure ATIRAR (a mira vai sozinha no zumbi mais perto). Toque no + do chão para pôr uma torre e salve quem pede SOCORRO (até 2 viram ajudantes)!</B>
         </View>
       )}
     </View>
@@ -137,7 +137,7 @@ function Shop() {
               onPress={() => game.act.buyUpg(u.id)} w={lay.W} />
           ))}
           {s.tab === 'base' && <>
-            <Item img={s.centro.img} title={'Centro: ' + s.centro.name} desc={s.centro.next ? 'Vira ' + s.centro.next.name + ': base maior e mais bonita, ' + s.centro.next.slots + ' torres e até ' + s.centro.next.allies + ' ajudantes.' : 'O centro está no máximo!'}
+            <Item img={s.centro.img} title={'Centro: ' + s.centro.name} desc={s.centro.next ? 'Vira ' + s.centro.next.name + ': base maior e mais bonita, ' + s.centro.next.slots + ' lugares de torre e muro mais comprido.' : 'O centro está no máximo!'}
               btn={s.centro.next ? String(s.centro.next.price) : 'MÁXIMO'} coin={!!s.centro.next} ok={!!s.centro.next && s.centro.next.ok} on={!s.centro.next} coinImg={s.coinImg}
               onPress={() => game.act.centroUp()} w={lay.W} />
             <Item img={s.wall.img} title={'Muros de ' + s.wall.name.toLowerCase()} desc={'Cada pedaço aguenta ' + s.wall.hp + ' de dano.' + (s.wall.next ? ' Próximo: ' + s.wall.next.name.toLowerCase() + ' (' + s.wall.next.hp + ').' : '')}

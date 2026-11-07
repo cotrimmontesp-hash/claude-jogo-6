@@ -12,9 +12,9 @@ deixar a base cada vez mais forte.
   (dano, rapidez, vida, ímã, abrigo, granada), muros de madeira, pedra e metal e 4 torres que atiram
   sozinhas.
 - **Pessoas pedem SOCORRO** fora da base (uma seta mostra onde): chegue perto, elas te seguem, e quando
-  entram na base dão moedas e viram ajudantes que atiram nos zumbis.
+  entram na base dão moedas e (até 2) viram ajudantes que atiram nos zumbis. Isso só existe jogando sozinho.
 - **O centro** tem 4 níveis (Acampamento, Posto Avançado, Forte e Cidadela): a base fica maior e mais
-  bonita, com mais lugares de torre e mais ajudantes.
+  bonita, com mais lugares de torre.
 - **Online**: crie uma sala e passe o código de 4 números; até 4 pessoas defendem a base de quem criou.
   Cada um fica com as moedas que pega (conexão direta entre os aparelhos, WebRTC).
 - Se a base cair, você tenta a onda de novo e fica com as moedas.
