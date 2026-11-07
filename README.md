@@ -1,22 +1,17 @@
-# Vila Selvagem
+# Base Zumbi
 
-Jogo de estratégia para celular: você cuida de uma vila no meio da mata, constrói, abre espaço e doma
-bichos que crescem e evoluem.
+Jogo de ação e estratégia para celular: defenda a base dos zumbis e use as moedas que eles soltam para
+deixar a base cada vez mais forte.
 
-- **Um mundo só**: arraste com o dedo para andar e use a pinça para o zoom. A vila fica no meio e as
-  regiões (floresta, colinas, deserto, ilha…) ficam em volta; as desconhecidas, escondidas na neblina.
-- **A vila** tem terrenos livres em volta da praça com a fogueira. Cada construção sobe até o nível 3;
-  dá para mover e desmontar.
-- **Coleta**: toque numa árvore, pedra ou arbusto e um morador vai lá, trabalha e traz madeira, pedra ou
-  comida (e continua até acabar). Depois a árvore cresce de novo.
-- **Fazenda**: toque para plantar, espere crescer e toque de novo para colher.
-- **Os bichos** (lobo, javali, raposa, cabra, camelo, lontra, tartaruga, urso, coruja e águia) comem,
-  ganham experiência, sobem até o nível 10 e evoluem nos níveis 4 e 8 (filhote → jovem → adulto). Cada um
-  dá um bônus e tem habilidades: nadar, escalar, voar, aguentar o deserto.
-- **As regiões** são 10. Toque numa para ver o que tem e montar a expedição. Algumas só abrem com o bicho certo (a ilha pede quem nade, a montanha pede
-  quem escale…). Nas expedições você leva até 3 moradores e 2 bichos, faz escolhas nos eventos e pode
-  domar bichos novos.
-- A vila **continua produzindo enquanto você está fora** (até 12 horas) e tem **prêmio diário** de 7 dias.
+- **Você** anda com o joystick (arraste o dedo em qualquer lugar da tela) e atira sozinho no zumbi mais
+  perto. A granada explode vários de uma vez.
+- **As ondas** ficam mais difíceis a cada vez: zumbis comuns, corredores, grandões e, a cada 5 ondas, um
+  chefão. Eles batem nos muros e tentam derrubar o abrigo no meio da base.
+- **As moedas** caem dos zumbis; passe perto para pegar (o ímã puxa de mais longe).
+- **A loja** (entre as ondas) tem armas (pistola, espingarda, metralhadora e rifle de raio), melhorias
+  (dano, rapidez, vida, ímã, abrigo, granada), muros de madeira, pedra e metal e 4 torres que atiram
+  sozinhas.
+- Se a base cair, você tenta a onda de novo e fica com as moedas.
 
 App em **React Native + Expo + TypeScript** (pasta `app/`): site/PWA na Vercel (React Native Web) e apps
 pelo EAS (APK/AAB e IPA). O workflow "Gerar APK" monta um APK a cada envio e testa num Android virtual.

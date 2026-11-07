@@ -4,6 +4,22 @@ export interface NoiseOpt { t: number; v?: number; fq?: number; f2?: number; typ
 export interface Synth { tone(o: ToneOpt): void; noise(o: NoiseOpt): void }
 
 export const SFX: { [name: string]: (s: Synth, v: number) => void } = {
+  shot: (s) => { s.noise({ t: .09, v: .3, fq: 2400, f2: 600, type: 'bandpass', q: 1.2 }); s.tone({ f: 220, f2: 90, t: .07, type: 'square', v: .08 }); },
+  shotgun: (s) => { s.noise({ t: .22, v: .42, fq: 1600, f2: 300, type: 'lowpass' }); s.tone({ f: 120, f2: 50, t: .15, type: 'sine', v: .25 }); },
+  mg: (s) => s.noise({ t: .06, v: .26, fq: 2800, f2: 900, type: 'bandpass', q: 1.5 }),
+  laser: (s) => { s.tone({ f: 1800, f2: 300, t: .18, type: 'sawtooth', v: .12 }); s.tone({ f: 900, f2: 200, t: .2, type: 'sine', v: .12 }); },
+  turret: (s) => s.noise({ t: .05, v: .18, fq: 3200, f2: 1200, type: 'bandpass', q: 2 }),
+  hit: (s) => s.noise({ t: .05, v: .16, fq: 600, type: 'lowpass' }),
+  zdie: (s) => { s.tone({ f: 160, f2: 60, t: .35, type: 'sawtooth', v: .1 }); s.noise({ t: .2, v: .14, fq: 500, type: 'lowpass' }); },
+  coin: (s) => { s.tone({ f: 1318, t: .05, type: 'triangle', v: .1 }); s.tone({ f: 1760, t: .08, type: 'triangle', v: .1, dl: .04 }); },
+  hurt: (s) => { s.tone({ f: 300, f2: 120, t: .18, type: 'square', v: .12 }); s.noise({ t: .1, v: .15, fq: 900, type: 'lowpass' }); },
+  thud: (s) => { s.tone({ f: 90, f2: 50, t: .12, type: 'sine', v: .25 }); s.noise({ t: .08, v: .12, fq: 400, type: 'lowpass' }); },
+  boom: (s) => { s.noise({ t: .7, v: .55, fq: 1200, f2: 80, type: 'lowpass' }); s.tone({ f: 80, f2: 30, t: .6, type: 'sine', v: .4 }); },
+  throw: (s) => s.tone({ f: 500, f2: 900, t: .15, type: 'triangle', v: .1 }),
+  wave: (s) => { [196, 196, 233, 262].forEach((f, i) => s.tone({ f, t: .22, type: 'sawtooth', v: .12, dl: i * .18 })); s.tone({ f: 65, t: .8, type: 'sine', v: .3 }); },
+  boss: (s) => { s.tone({ f: 70, f2: 45, t: 1.2, type: 'sawtooth', v: .2 }); s.tone({ f: 105, f2: 70, t: 1.2, type: 'square', v: .08 }); },
+  lose: (s) => { [392, 330, 262, 196].forEach((f, i) => s.tone({ f, t: .3, type: 'triangle', v: .16, dl: i * .22 })); },
+  buy: (s) => { [784, 988, 1318].forEach((f, i) => s.tone({ f, t: .1, type: 'square', v: .08, dl: i * .06 })); s.noise({ t: .15, v: .08, fq: 6000, type: 'highpass', dl: .15 }); },
   click: (s) => s.tone({ f: 660, f2: 880, t: .06, type: 'triangle', v: .2 }),
   back: (s) => s.tone({ f: 520, f2: 360, t: .07, type: 'triangle', v: .16 }),
   select: (s) => s.tone({ f: 880, t: .05, type: 'triangle', v: .14 }),
@@ -25,8 +41,8 @@ export const SFX: { [name: string]: (s: Synth, v: number) => void } = {
 };
 
 export const SONGS: { [k: string]: { bpm: number; bass: number[]; lead: number[]; drum?: boolean } } = {
-  city: { bpm: 92, bass: [53, 0, 60, 0, 58, 0, 57, 0, 55, 0, 62, 0, 60, 0, 57, 0], lead: [77, 0, 76, 77, 79, 0, 77, 0, 74, 0, 72, 74, 76, 0, 0, 0] },
-  travel: { bpm: 108, bass: [50, 0, 57, 50, 53, 0, 57, 0, 48, 0, 55, 48, 52, 0, 55, 0], lead: [0, 74, 0, 72, 0, 69, 0, 0, 0, 72, 0, 74, 0, 76, 0, 0], drum: true },
+  prep: { bpm: 84, bass: [45, 0, 52, 0, 48, 0, 52, 0, 43, 0, 50, 0, 47, 0, 50, 0], lead: [69, 0, 0, 72, 0, 0, 71, 0, 67, 0, 0, 69, 0, 0, 0, 0] },
+  fight: { bpm: 132, bass: [40, 40, 0, 40, 43, 0, 40, 0, 38, 38, 0, 38, 41, 0, 43, 0], lead: [64, 0, 67, 0, 64, 0, 70, 69, 0, 0, 67, 0, 64, 0, 62, 0], drum: true },
 };
 export const midiHz = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 export function songStep(mode: string, i: number, tone: (o: ToneOpt) => void, noise: (o: NoiseOpt) => void, dl: number) {

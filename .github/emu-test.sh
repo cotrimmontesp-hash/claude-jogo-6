@@ -1,10 +1,10 @@
 #!/bin/bash
 # Teste do APK no Android virtual: abre o jogo, toca nas telas e tira fotos (vão para o ramo ci-shots).
 mkdir -p shots
-adb install -r VilaSelvagem.apk
+adb install -r BaseZumbi.apk
 adb logcat -c
 adb shell settings put secure immersive_mode_confirmations confirmed
-adb shell monkey -p com.claude.vilaselvagem -c android.intent.category.LAUNCHER 1
+adb shell monkey -p com.claude.basezumbi -c android.intent.category.LAUNCHER 1
 sleep 30
 n=0
 shot(){ n=$((n+1)); adb exec-out screencap -p > "shots/$(printf %02d $n)-$1.png"; }
@@ -17,16 +17,14 @@ tap(){
 }
 back(){ adb shell input keyevent 4; sleep 2; }
 shot inicio
-tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot vila
-adb shell input tap 630 449; sleep 7; shot coleta
-adb shell input tap 1553 400; sleep 2; shot plantar
-adb shell input swipe 1500 650 700 520 700; sleep 2; shot arrastar
-tap "BICHOS" 324 306; sleep 2; shot bichos; back
-tap "EXPEDIÇÃO" 324 189; sleep 3; shot regiao
-tap "MONTAR EXPEDIÇÃO" 1840 817; sleep 2; shot expedicao
-tap "Lia" 238 701; sleep 1; tap "Lobo 1" 998 701; sleep 1; shot equipe
-tap "PARTIR!" 1330 906; sleep 2; shot evento
-for k in 1 2 3 4; do adb shell input tap 638 762; sleep 1; done; shot fim
-tap "OK" 1170 900; sleep 2; shot volta
+adb shell input swipe 900 600 700 600 1500; sleep 1; shot andar
+tap "LOJA" 1700 960; sleep 2; shot loja
+tap "MELHORIAS" 1500 120; sleep 1; shot loja-melhorias
+tap "BASE" 1700 120; sleep 1; shot loja-base
+back; sleep 1
+tap "COMEÇAR ONDA 1" 2050 960; sleep 15; shot onda
+adb shell input tap 2205 946; sleep 2; shot granada
+adb shell input swipe 1200 600 1500 600 3000; sleep 20; shot onda2
+sleep 30; shot fim
 adb logcat -d > shots/logcat.txt
 true

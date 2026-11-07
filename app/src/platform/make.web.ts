@@ -2,7 +2,7 @@
 import type { Platform } from '../engine/types';
 import { SFX, SONGS, songStep, type ToneOpt, type NoiseOpt } from '../engine/sfx';
 
-export const SKEY = 'cidade-costas-v1';
+export const SKEY = 'base-zumbi-v1';
 const W: any = typeof window !== 'undefined' ? window : {};
 
 /* ---------- som com WebAudio, gerado na hora ---------- */

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Vila Selvagem",
-    "slug": "vila-selvagem",
+    "name": "Base Zumbi",
+    "slug": "base-zumbi",
     "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
@@ -21,10 +21,10 @@
       "backgroundColor": "#2e2418"
     },
     "android": {
-      "package": "com.claude.vilaselvagem",
+      "package": "com.claude.basezumbi",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#8cd468"
+        "backgroundColor": "#5c7c3c"
       },
       "permissions": [
         "INTERNET",
@@ -32,7 +32,7 @@
       ]
     },
     "ios": {
-      "bundleIdentifier": "com.claude.vilaselvagem",
+      "bundleIdentifier": "com.claude.basezumbi",
       "supportsTablet": true,
       "requireFullScreen": true,
       "infoPlist": {
@@ -40,8 +40,8 @@
       }
     },
     "web": {
-      "name": "Vila Selvagem",
-      "shortName": "Vila Selvagem",
+      "name": "Base Zumbi",
+      "shortName": "Base Zumbi",
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/favicon.png",

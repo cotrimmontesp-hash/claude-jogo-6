@@ -7,12 +7,11 @@ import { getSaved, storeSave } from '../platform/make';
 
 export function createRemoteGame(): Game {
   const subs = new Set<() => void>();
-  const ui: any = { v: 0, show: { city: true, build: false, beasts: false, people: false, exped: false, region: false, daily: false, away: false }, toast: null };
+  const ui: any = { v: 0, show: { hud: true, shop: false, lost: false }, toast: null };
   let info: any = {
-    city: { res: [], ready: 0, goal: '', moving: false, hungry: false, people: 3, homes: 5, pets: 1, pens: 2, free: 3, dailyCan: false, sfx: true, mus: true, explored: 1 },
-    build: { mode: 'none' }, beasts: { pens: 2, food: 0, list: [], wild: [] },
-    people: { homes: 5, wait: 0, list: [], roles: [] }, exped: { region: '', danger: 0, types: [], loot: [], torre: 0, need: [], beastLvl: 0, wildHere: [], people: [], pets: [], food: 0, water: 0, waterCamel: 0, stage: 'pick' },
-    region: { id: -1 }, daily: { can: false, day: 0, days: [] }, away: { mins: 0, got: [] },
+    hud: { coins: 0, wave: 1, best: 0, phase: 'prep', left: 0, hp: 100, maxHp: 100, hq: 600, hqMax: 600, dead: 0, nade: 0, sfx: true, mus: true, coinImg: '', next: 0, boss: false, kills: 1 },
+    shop: { tab: 'arma', coins: 0, coinImg: '', guns: [], upg: [], wall: { lv: 0, name: '', hp: 0, img: '', next: null }, turrets: [] },
+    lost: { wave: 1, coins: 0, kills: 0 },
   };
   let sendRaw: ((o: any) => void) | null = null;
   const queue: any[] = [];
@@ -23,7 +22,7 @@ export function createRemoteGame(): Game {
   const optimistic: { [k: string]: (...a: any[]) => void } = {};
   const back = () => {
     const S = ui.show;
-    if (S.away || S.daily || S.build || S.beasts || S.people || S.exped || S.region) { post({ t: 'act', k: 'back', a: [] }); return true; }
+    if (S.shop || S.lost) { post({ t: 'act', k: 'back', a: [] }); return true; }
     return false;
   };
   const act: any = new Proxy({}, {
@@ -41,8 +40,7 @@ export function createRemoteGame(): Game {
     tick() { }, draw() { },
     input: { keyDown: () => false, keyUp() { }, ptrDown: () => false, ptrMove() { }, ptrUp() { }, wheel() { } },
     info: {
-      city: () => info.city, build: () => info.build, beasts: () => info.beasts, people: () => info.people, exped: () => info.exped,
-      region: () => info.region, daily: () => info.daily, away: () => info.away, isTouch: () => true,
+      hud: () => info.hud, shop: () => info.shop, lost: () => info.lost, isTouch: () => true,
     },
     act,
     /* ligação com a WebView (usado pela tela do jogo) */
