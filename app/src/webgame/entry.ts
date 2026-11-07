@@ -46,7 +46,7 @@ async function start() {
   const send = () => {
     const S = g.ui.show;
     const info: any = { hud: g.info.hud() };
-    for (const k of ['shop', 'lost']) if (S[k]) info[k] = g.info[k]();
+    for (const k of ['shop', 'lost', 'online']) if (S[k]) info[k] = g.info[k]();
     const msg = JSON.stringify({ t: 'snap', ui: { show: S, toast: g.ui.toast }, info });
     if (msg !== last) { last = msg; post(JSON.parse(msg)); }
   };

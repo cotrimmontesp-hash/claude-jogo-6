@@ -1,14 +1,29 @@
 /* Números do Base Zumbi: armas, zumbis, muros, torres, melhorias e ondas. */
 
 /** o mundo (unidades) e a base no meio */
-export const WORLD = { w: 2200, h: 1500 };
-export const BASE = { x: 1100, y: 760, half: 230 };
-/** abrigo no meio da base */
-export const HQ = { x: 1100, y: 740, r: 52 };
-/** lugares das torres (dentro dos muros) */
-export const TURRET_SLOTS = [{ x: 945, y: 610 }, { x: 1255, y: 610 }, { x: 945, y: 905 }, { x: 1255, y: 905 }];
-/** muros: 4 lados x 5 pedaços */
-export const WALL_SEG = 5;
+export const WORLD = { w: 2800, h: 1900 };
+/** a base: o tamanho muda com o nível do centro (BASE.half é ajustado pelo jogo) */
+export const BASE = { x: 1400, y: 960, half: 230 };
+/** prédio do centro no meio da base */
+export const HQ = { x: 1400, y: 940, r: 52 };
+/** níveis do centro: a base cresce, ganha mais torres e fica mais bonita */
+export const BASE_LV = [
+  { name: 'Acampamento', half: 230, seg: 5, slots: 4, price: 0, hq: 0 },
+  { name: 'Posto Avançado', half: 290, seg: 6, slots: 6, price: 700, hq: 300 },
+  { name: 'Forte', half: 350, seg: 7, slots: 8, price: 1800, hq: 700 },
+  { name: 'Cidadela', half: 410, seg: 8, slots: 8, price: 4000, hq: 1300 },
+];
+/** lugares das torres para um nível do centro */
+export function turretSlots(lv: number) {
+  const h = BASE_LV[lv].half - 78, n = BASE_LV[lv].slots, out = [
+    { x: BASE.x - h, y: BASE.y - h + 10 }, { x: BASE.x + h, y: BASE.y - h + 10 }, { x: BASE.x - h, y: BASE.y + h - 10 }, { x: BASE.x + h, y: BASE.y + h - 10 },
+    { x: BASE.x - h, y: BASE.y + 40 }, { x: BASE.x + h, y: BASE.y + 40 }, { x: BASE.x - h * .45, y: BASE.y + h - 10 }, { x: BASE.x + h * .45, y: BASE.y + h - 10 },
+  ];
+  return out.slice(0, n);
+}
+export const MAX_SLOTS = 8;
+/** sobreviventes resgatados viram ajudantes; quantos cabem por nível do centro */
+export const ALLY_MAX = [2, 4, 6, 8];
 
 export interface Gun { id: string; name: string; dmg: number; rate: number; range: number; pellets: number; spread: number; price: number; desc: string; col: string }
 export const GUNS: Gun[] = [

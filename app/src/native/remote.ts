@@ -7,11 +7,12 @@ import { getSaved, storeSave } from '../platform/make';
 
 export function createRemoteGame(): Game {
   const subs = new Set<() => void>();
-  const ui: any = { v: 0, show: { hud: true, shop: false, lost: false }, toast: null };
+  const ui: any = { v: 0, show: { hud: true, shop: false, lost: false, online: false }, toast: null };
   let info: any = {
-    hud: { coins: 0, wave: 1, best: 0, phase: 'prep', left: 0, hp: 100, maxHp: 100, hq: 600, hqMax: 600, dead: 0, nade: 0, sfx: true, mus: true, coinImg: '', next: 0, boss: false, kills: 1 },
-    shop: { tab: 'arma', coins: 0, coinImg: '', guns: [], upg: [], wall: { lv: 0, name: '', hp: 0, img: '', next: null }, turrets: [] },
-    lost: { wave: 1, coins: 0, kills: 0 },
+    hud: { coins: 0, wave: 1, best: 0, phase: 'prep', left: 0, hp: 100, maxHp: 100, hq: 600, hqMax: 600, dead: 0, nade: 0, sfx: true, mus: true, coinImg: '', next: 0, boss: false, kills: 1, online: false, host: false, guest: false, code: '', people: 1, allies: 0, baseName: '', sos: 0 },
+    shop: { tab: 'arma', coins: 0, coinImg: '', guest: false, guns: [], upg: [], centro: { lv: 0, name: '', next: null, img: '' }, wall: { lv: 0, name: '', hp: 0, img: '', next: null }, turrets: [] },
+    lost: { wave: 1, coins: 0, kills: 0, guest: false },
+    online: { host: false, guest: false, code: '', status: '', busy: false, name: '', players: [] },
   };
   let sendRaw: ((o: any) => void) | null = null;
   const queue: any[] = [];
@@ -22,7 +23,7 @@ export function createRemoteGame(): Game {
   const optimistic: { [k: string]: (...a: any[]) => void } = {};
   const back = () => {
     const S = ui.show;
-    if (S.shop || S.lost) { post({ t: 'act', k: 'back', a: [] }); return true; }
+    if (S.shop || S.lost || S.online) { post({ t: 'act', k: 'back', a: [] }); return true; }
     return false;
   };
   const act: any = new Proxy({}, {
@@ -40,7 +41,7 @@ export function createRemoteGame(): Game {
     tick() { }, draw() { },
     input: { keyDown: () => false, keyUp() { }, ptrDown: () => false, ptrMove() { }, ptrUp() { }, wheel() { } },
     info: {
-      hud: () => info.hud, shop: () => info.shop, lost: () => info.lost, isTouch: () => true,
+      hud: () => info.hud, shop: () => info.shop, lost: () => info.lost, online: () => info.online, isTouch: () => true,
     },
     act,
     /* ligação com a WebView (usado pela tela do jogo) */
