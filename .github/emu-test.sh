@@ -19,7 +19,7 @@ back(){ adb shell input keyevent 4; sleep 2; }
 shot inicio
 tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot cidade
 tap "RECOLHER" 2100 980; sleep 2; shot recolher
-adb shell input tap 1050 470; sleep 2; shot construir
+adb shell input tap 1160 470; sleep 2; shot construir
 back
 tap "CRIATURA" 160 560; sleep 2; shot criatura; back
 tap "MORADORES" 160 700; sleep 2; shot moradores; back

@@ -77,9 +77,9 @@ function Hud() {
       </View>
       <View style={{ position: 'absolute', left: 6 + lay.ins.l, top: TOP_H + lay.ins.t + 2, width: LEFT_W - 12, gap: lay.short ? 3 : 6 }} pointerEvents="box-none">
         <Btn label="MAPA" kind="blue" size="sm" onPress={() => game.act.open('map')} />
-        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={14} onPress={() => game.act.open('exped')} />{c.free > 0 && !c.traveling && <Badge n={c.free} />}</View>
-        <Btn label="CRIATURA" kind="green" size="sm" fontSize={14} onPress={() => game.act.open('creature')} />
-        <Btn label="MORADORES" kind="purple" size="sm" fontSize={13} onPress={() => game.act.open('people')} />
+        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('exped')} />{c.free > 0 && !c.traveling && <Badge n={c.free} />}</View>
+        <Btn label="CRIATURA" kind="green" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('creature')} />
+        <Btn label="MORADORES" kind="purple" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('people')} />
         <View><Btn label="PRÊMIO" kind="gold" size="sm" onPress={() => game.act.openDaily()} />{c.dailyCan && <Badge />}</View>
       </View>
       <View style={{ position: 'absolute', left: LEFT_W + lay.ins.l, right: 6 + lay.ins.r, bottom: 6 + lay.ins.b, height: BOTTOM_H - 10, flexDirection: 'row', alignItems: 'center', gap: 8 }} pointerEvents="box-none">

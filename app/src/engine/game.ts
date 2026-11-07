@@ -12,7 +12,7 @@ import type { Platform, Ctx2D, Insets, PtrEv } from './types';
 
 export type Game = ReturnType<typeof createGame>;
 /* espaço das telas em volta da criatura (React Native) */
-export const TOP_H = 50, LEFT_W = 118, BOTTOM_H = 58;
+export const TOP_H = 50, LEFT_W = 136, BOTTOM_H = 58;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const now = () => Date.now();
 
