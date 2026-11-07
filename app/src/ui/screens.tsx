@@ -192,7 +192,7 @@ function People() {
         <Head title={'MORADORES  ' + p.list.length + '/' + p.homes} onClose={() => game.act.closeScreen('people')} />
         {p.wait > 0 && <B w="black" color={C.coral}>{p.wait + ' pessoa(s) esperando casa: construa uma Casa!'}</B>}
         <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'stretch' }}>
-          {p.roles.map((r: any) => <View key={r.k} style={{ flex: 1, borderRadius: 10, borderWidth: 2.5, borderColor: C.ink, backgroundColor: r.col, padding: 5 }}><T size={13}>{r.name + 's: ' + r.n}</T><B size={10} color="#fff">{r.desc}</B></View>)}
+          {p.roles.map((r: any) => <View key={r.k} style={{ flex: 1, borderRadius: 10, borderWidth: 2.5, borderColor: C.ink, backgroundColor: r.col, padding: 5 }}><T size={13}>{r.name.replace(/or$/, 'ore') + 's: ' + r.n}</T><B size={10} color="#fff">{r.desc}</B></View>)}
         </View>
         <ScrollView style={{ maxHeight: lay.H * .5, alignSelf: 'stretch' }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {p.list.map((v: any) => (
