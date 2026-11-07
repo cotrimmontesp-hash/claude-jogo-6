@@ -148,7 +148,8 @@ export function iconImage(id: string, size = 120, bg?: string, kind: 'piece' | '
   try {
     const c = mk(size, size), g = c.getContext('2d');
     if (bg) { hexPath(g, size / 2, size / 2, size * .48); g.fillStyle = bg; g.fill(); g.lineWidth = size * .04; g.strokeStyle = INK; g.stroke(); }
-    if (kind === 'wasp') wasp(g, size / 2, size * .52, size * .42, 0, id); else piece(g, id, size / 2, size / 2, size * .42, 0, '#f8c020');
+    const k = ['operaria', 'guarda', 'rainha'].includes(id) ? .66 : id === 'cera' || id === 'pedra' ? .6 : .56;
+    if (kind === 'wasp') wasp(g, size / 2, size * .54, size * .62, 0, id); else piece(g, id, size / 2, size * (id === 'ferrao' ? .5 : .54), size * k, 0, '#f8c020');
     imgCache[k] = c.toDataURL ? c.toDataURL('image/png') : '';
   } catch (e) { imgCache[k] = ''; }
   return imgCache[k];
