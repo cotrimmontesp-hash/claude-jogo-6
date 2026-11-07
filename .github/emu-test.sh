@@ -19,16 +19,16 @@ back(){ adb shell input keyevent 4; sleep 2; }
 shot inicio
 tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot vila
 tap "RECOLHER" 2100 980; sleep 2; shot recolher
-adb shell input tap 1250 560; sleep 2; shot construcao
+adb shell input tap 1680 684; sleep 2; shot construcao
 back
-tap "BICHOS" 160 560; sleep 2; shot bichos; back
-tap "MORADORES" 160 700; sleep 2; shot moradores; back
-tap "EXPEDIÇÃO" 160 420; sleep 2; shot mapa
-tap "Floresta Antiga" 800 380; sleep 2; shot mapa-floresta
-tap "MONTAR EXPEDIÇÃO" 2000 900; sleep 2; shot expedicao
-tap "Lia" 400 650; sleep 1; tap "Lobo 1" 900 650; sleep 1; shot equipe
-tap "PARTIR!" 1150 950; sleep 2; shot evento
-for k in 1 2 3 4; do adb shell input tap 800 640; sleep 1; done; shot fim
+tap "BICHOS" 324 306; sleep 2; shot bichos; back
+tap "MORADORES" 324 426; sleep 2; shot moradores; back
+tap "EXPEDIÇÃO" 324 189; sleep 2; shot mapa
+adb shell input tap 743 407; sleep 2; shot mapa-floresta
+tap "MONTAR EXPEDIÇÃO" 1830 929; sleep 2; shot expedicao
+tap "Lia" 238 701; sleep 1; tap "Lobo 1" 998 701; sleep 1; shot equipe
+tap "PARTIR!" 1330 906; sleep 2; shot evento
+for k in 1 2 3 4; do adb shell input tap 638 762; sleep 1; done; shot fim
 tap "OK" 1170 900; sleep 2; shot volta
 adb logcat -d > shots/logcat.txt
 true
