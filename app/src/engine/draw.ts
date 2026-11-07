@@ -122,73 +122,100 @@ export function drawGround(g: Ctx2D, x0: number, y0: number, x1: number, y1: num
 }
 
 /* ---------- soldado ---------- */
-export function soldier(g: Ctx2D, x: number, y: number, s: number, aim: number, t: number, moving: boolean, hurt: number, gun: string, gcol: string) {
-  const st = moving ? Math.sin(t * 13) : 0, bob = moving ? Math.abs(st) * 1.2 * s : 0, L = Math.max(1, 1.1 * s);
-  const face = Math.cos(aim) >= 0 ? 1 : -1;
-  ell(g, x, y, 13 * s, 4.5 * s, 'rgba(0,0,0,.3)');
+export function soldier(g: Ctx2D, x: number, y: number, s: number, aim: number, t: number, moving: boolean, hurt: number, gun: string, gcol: string, flash = 0) {
+  const st = moving ? Math.sin(t * 13) : 0, bob = moving ? Math.abs(st) * 1.2 * s : 0, L = Math.max(1, 1.1 * s), ink = '#1c2414';
+  const face = Math.cos(aim) >= 0 ? 1 : -1, back = Math.sin(aim) < -.35;
+  ell(g, x, y, 14 * s, 5 * s, 'rgba(0,0,0,.32)');
   g.save(); g.translate(x, y - bob);
-  /* pernas */
-  g.lineCap = 'round'; g.lineWidth = 5 * s; g.strokeStyle = '#3c4c2c';
-  g.beginPath(); g.moveTo(-3.5 * s, -14 * s); g.lineTo(-3.5 * s + st * 5 * s, -2 * s); g.moveTo(3.5 * s, -14 * s); g.lineTo(3.5 * s - st * 5 * s, -2 * s); g.stroke();
-  ell(g, -3.5 * s + st * 5 * s + face * s, -1.5 * s, 3.5 * s, 2 * s, '#2c2418'); ell(g, 3.5 * s - st * 5 * s + face * s, -1.5 * s, 3.5 * s, 2 * s, '#2c2418');
-  /* corpo: colete */
-  g.beginPath(); g.moveTo(-8 * s, -13 * s); g.lineTo(-7 * s, -30 * s); g.quadraticCurveTo(0, -34 * s, 7 * s, -30 * s); g.lineTo(8 * s, -13 * s); g.closePath();
-  g.fillStyle = grad(g, 0, -34 * s, 0, -12 * s, [[0, '#6c8c4c'], [1, '#4c6c34']]); g.fill(); g.lineWidth = L; g.strokeStyle = '#1c2414'; g.stroke();
-  box(g, -6 * s, -26 * s, 12 * s, 9 * s, 2 * s, '#5c7440', L * .6); g.fillStyle = '#3c2c1c'; g.fillRect(-8 * s, -16 * s, 16 * s, 2.5 * s);
-  /* cabeça com capacete */
-  circ(g, 0, -38 * s, 7 * s, '#f0c8a0', L);
-  g.beginPath(); g.ellipse(0, -40.5 * s, 8.6 * s, 6.5 * s, 0, Math.PI, 0); g.closePath(); g.fillStyle = '#5c7c3c'; g.fill(); g.stroke();
-  g.fillStyle = '#4c6c30'; g.fillRect(-9 * s, -41 * s, 18 * s, 2.2 * s);
-  circ(g, face * 3 * s, -37 * s, 1.2 * s, '#1c1410'); circ(g, face * 5.5 * s, -34.5 * s, 1.2 * s, 'rgba(230,110,90,.5)');
-  /* braços e arma apontando para o alvo */
-  g.save(); g.translate(0, -24 * s); g.rotate(aim); if (face < 0) g.scale(1, -1);
-  const len = gun === 'espingarda' ? 24 : gun === 'metralhadora' ? 26 : gun === 'rifle' ? 28 : 15;
-  g.lineWidth = 4.5 * s; g.strokeStyle = '#5c7c3c'; g.beginPath(); g.moveTo(0, 0); g.lineTo(10 * s, 2 * s); g.stroke();
-  box(g, 6 * s, -1.5 * s, len * s, 5 * s, 1.5 * s, gcol, L * .7);
-  if (gun === 'metralhadora') { box(g, 10 * s, 3 * s, 5 * s, 7 * s, 1 * s, '#2c2c2c', L * .5); }
-  if (gun === 'rifle') { box(g, 12 * s, -4 * s, 10 * s, 3 * s, 1 * s, '#9cd8ff', L * .5); circ(g, (6 + len) * s, 1 * s, 2.2 * s, '#bff0ff'); }
+  /* pernas com botas */
+  g.lineCap = 'round';
+  for (const [lx, ph] of [[-3.5, 1], [3.5, -1]]) { const fx = lx * s + st * ph * 5 * s; g.lineWidth = 5.4 * s; g.strokeStyle = '#4c5c34'; g.beginPath(); g.moveTo(lx * s, -15 * s); g.lineTo(fx, -4 * s); g.stroke(); box(g, fx - 3.2 * s + face * .8 * s, -5 * s, 6.4 * s, 5 * s, 1.6 * s, '#3c2c1c', L * .6); }
+  /* mochila (aparece atrás) */
+  if (!back) box(g, -face * 9.5 * s - 4 * s, -31 * s, 8 * s, 14 * s, 2.5 * s, '#5c4c30', L * .7);
+  /* corpo: farda e colete */
+  g.beginPath(); g.moveTo(-8.5 * s, -13 * s); g.lineTo(-7.5 * s, -31 * s); g.quadraticCurveTo(0, -35 * s, 7.5 * s, -31 * s); g.lineTo(8.5 * s, -13 * s); g.closePath();
+  g.fillStyle = grad(g, -8 * s, 0, 8 * s, 0, [[0, '#4c6c34'], [.45, '#7c9c54'], [1, '#3c5c2c']]); g.fill(); g.lineWidth = L; g.strokeStyle = ink; g.stroke();
+  box(g, -6.5 * s, -28 * s, 13 * s, 12 * s, 2.5 * s, '#5c6c3c', L * .6);
+  for (const px of [-4.5, 0, 4.5]) box(g, px * s - 1.8 * s, -21 * s, 3.6 * s, 4 * s, 1 * s, '#4c5c30', L * .4);
+  g.fillStyle = '#3c2c1c'; g.fillRect(-8.5 * s, -16 * s, 17 * s, 2.6 * s); box(g, -1.6 * s, -16.4 * s, 3.2 * s, 3.4 * s, .8 * s, '#c8a040');
+  if (back) box(g, -5 * s, -32 * s, 10 * s, 15 * s, 2.5 * s, '#5c4c30', L * .7);
+  /* cabeça com capacete e óculos de proteção */
+  circ(g, 0, -39 * s, 7.2 * s, '#f0c8a0', L);
+  if (!back) { circ(g, face * 3.2 * s, -38.5 * s, 1.3 * s, '#1c1410'); circ(g, face * 3.6 * s, -38.9 * s, .45 * s, '#fff'); g.strokeStyle = '#8c5c3c'; g.lineWidth = .9 * s; g.beginPath(); g.moveTo(face * 1.8 * s, -35 * s); g.lineTo(face * 4.6 * s, -35.3 * s); g.stroke(); circ(g, face * 5.6 * s, -36.3 * s, 1.2 * s, 'rgba(230,110,90,.45)'); }
+  g.beginPath(); g.ellipse(0, -41.5 * s, 9 * s, 7 * s, 0, Math.PI, 0); g.closePath(); g.fillStyle = grad(g, 0, -49 * s, 0, -41 * s, [[0, '#7c9c4c'], [1, '#4c6c30']]); g.fill(); g.lineWidth = L; g.strokeStyle = ink; g.stroke();
+  g.fillStyle = '#3c5c28'; g.fillRect(-9.6 * s, -42 * s, 19.2 * s, 2.4 * s);
+  box(g, -5 * s, -47.5 * s, 10 * s, 3.4 * s, 1.5 * s, '#3c3c3c', L * .4); circ(g, -2.4 * s, -45.8 * s, 1.3 * s, '#9cd0f0'); circ(g, 2.4 * s, -45.8 * s, 1.3 * s, '#9cd0f0');
+  /* braços e arma apontando para o alvo (com recuo e clarão) */
+  g.save(); g.translate(0, -25 * s); g.rotate(aim); if (face < 0) g.scale(1, -1);
+  const len = gun === 'espingarda' ? 24 : gun === 'metralhadora' ? 26 : gun === 'rifle' ? 28 : 15, rc = -flash * 2.5 * s;
+  g.translate(rc, 0);
+  g.lineWidth = 4.8 * s; g.strokeStyle = '#5c7c3c'; g.beginPath(); g.moveTo(-2 * s, -1 * s); g.lineTo(10 * s, 2 * s); g.stroke();
+  box(g, 6 * s, -1.6 * s, len * s, 5.2 * s, 1.5 * s, gcol, L * .7); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(7 * s, -1.2 * s, (len - 2) * s, 1.4 * s);
+  if (gun === 'metralhadora') box(g, 10 * s, 3 * s, 5 * s, 7.5 * s, 1 * s, '#2c2c2c', L * .5);
+  if (gun === 'rifle') { box(g, 12 * s, -4.2 * s, 10 * s, 3 * s, 1 * s, '#9cd8ff', L * .5); circ(g, (6 + len) * s, 1 * s, 2.3 * s, '#bff0ff'); }
   if (gun === 'espingarda') box(g, 4 * s, 0, 6 * s, 6 * s, 1.5 * s, '#8c5c34', L * .5);
-  circ(g, 10 * s, 2.5 * s, 2.6 * s, '#f0c8a0', L * .5);
+  box(g, 12 * s, 3 * s, 3.6 * s, 5 * s, 1 * s, '#2c2c2c', L * .4);
+  circ(g, 10 * s, 2.5 * s, 2.7 * s, '#f0c8a0', L * .5);
+  if (flash > 0) { const fx = (6 + len) * s; g.globalAlpha = flash; poly(g, [fx, -5 * s, fx + 16 * s, 0, fx, 5 * s, fx + 5 * s, 0], gun === 'rifle' ? '#9cf0ff' : '#ffd040'); circ(g, fx + 3 * s, 0, 4.5 * s, '#fff8d0'); g.globalAlpha = 1; }
   g.restore();
-  if (hurt > 0) { g.globalAlpha = hurt * .6; ell(g, 0, -24 * s, 14 * s, 22 * s, '#ff3030'); g.globalAlpha = 1; }
+  if (hurt > 0) { g.globalAlpha = hurt * .55; ell(g, 0, -26 * s, 15 * s, 24 * s, '#ff3030'); g.globalAlpha = 1; }
   g.restore();
 }
 
 /* ---------- zumbi ---------- */
 export function zombie(g: Ctx2D, z0: { skin: string; shirt: string; pants: string; id: string }, x: number, y: number, s: number, t: number, face: number, hit: number, die: number, attack: boolean) {
   const hl = Math.min(1, Math.max(0, hit)) * .7, z = hl > 0 ? { id: z0.id, skin: sh(z0.skin, hl), shirt: sh(z0.shirt, hl), pants: sh(z0.pants, hl) } : z0;
-  const st = Math.sin(t * 7), lean = attack ? Math.sin(t * 12) * .15 : .08, L = Math.max(1, 1.1 * s);
+  const st = Math.sin(t * 7), lean = attack ? Math.sin(t * 12) * .15 : .1, L = Math.max(1, 1.1 * s), ink = '#1c2414';
   g.save(); g.translate(x, y);
-  if (die > 0) { g.globalAlpha = 1 - die; g.rotate(face * die * 1.4); }
-  ell(g, 0, 0, 13 * s, 4.5 * s, 'rgba(0,0,0,.3)');
+  if (die > 0) { g.globalAlpha = Math.max(0, 1 - die); g.translate(0, die * 4 * s); g.rotate(face * die * 1.45); }
+  ell(g, 0, 0, 13 * s, 4.5 * s, 'rgba(0,0,0,.32)');
   g.scale(face, 1);
-  /* pernas arrastando */
-  g.lineCap = 'round'; g.lineWidth = 5 * s; g.strokeStyle = z.pants;
-  g.beginPath(); g.moveTo(-3.5 * s, -14 * s); g.lineTo(-4 * s + st * 3 * s, -2 * s); g.moveTo(3.5 * s, -14 * s); g.lineTo(3 * s - st * 3 * s, -2 * s); g.stroke();
-  ell(g, -4 * s + st * 3 * s, -1.5 * s, 3.4 * s, 1.8 * s, sh(z.skin, -.3)); ell(g, 3 * s - st * 3 * s, -1.5 * s, 3.4 * s, 1.8 * s, sh(z.skin, -.3));
+  /* pernas arrastando, uma calça rasgada */
+  g.lineCap = 'round';
+  for (const [lx, ph] of [[-3.5, 1], [3.5, -1]]) { const fx = lx * s + st * ph * 3.2 * s; g.lineWidth = 5.4 * s; g.strokeStyle = z.pants; g.beginPath(); g.moveTo(lx * s, -15 * s); g.lineTo(fx, -4 * s); g.stroke(); g.lineWidth = 3.6 * s; g.strokeStyle = z.skin; g.beginPath(); g.moveTo(fx, -5 * s); g.lineTo(fx, -2 * s); g.stroke(); ell(g, fx + .8 * s, -1.4 * s, 3.4 * s, 1.8 * s, sh(z.skin, -.35)); }
   g.rotate(lean);
-  /* corpo com camisa rasgada */
-  const fat = z.id === 'gordo' ? 1.35 : 1;
-  g.beginPath(); g.moveTo(-8 * s * fat, -13 * s); g.lineTo(-7 * s * fat, -30 * s); g.quadraticCurveTo(0, -34 * s, 7 * s * fat, -30 * s); g.lineTo(8 * s * fat, -13 * s);
-  for (let i = 0; i < 4; i++) g.lineTo(8 * s * fat - (i + .5) * 4 * s * fat, -13 * s + (i % 2 ? 3 : -1) * s);
-  g.closePath(); g.fillStyle = grad(g, 0, -34 * s, 0, -12 * s, [[0, sh(z.shirt, .1)], [1, sh(z.shirt, -.2)]]); g.fill(); g.lineWidth = L; g.strokeStyle = '#1c2414'; g.stroke();
-  ell(g, 3 * s, -22 * s, 2.5 * s, 3.5 * s, z.skin); g.fillStyle = 'rgba(80,120,40,.6)'; ell(g, -3 * s, -26 * s, 2 * s, 1.5 * s, 'rgba(90,140,50,.7)');
-  if (z.id === 'chefe') { for (let i = 0; i < 4; i++) poly(g, [-6 * s + i * 4 * s, -31 * s, -4 * s + i * 4 * s, -37 * s, -2 * s + i * 4 * s, -31 * s], '#c8c8c8', L * .5); }
-  /* braços esticados para frente */
+  /* braço de trás */
   const arm = attack ? Math.sin(t * 12) * 4 * s : Math.sin(t * 3) * 1.5 * s;
-  g.lineWidth = 4.2 * s; g.strokeStyle = z.skin;
-  g.beginPath(); g.moveTo(2 * s, -27 * s); g.lineTo(16 * s, -26 * s + arm); g.moveTo(-1 * s, -25 * s); g.lineTo(13 * s, -22 * s - arm); g.stroke();
-  circ(g, 16.5 * s, -26 * s + arm, 2.4 * s, sh(z.skin, -.1)); circ(g, 13.5 * s, -22 * s - arm, 2.4 * s, sh(z.skin, -.1));
-  /* cabeça */
-  const hx = 2 * s, hy = -38 * s;
-  circ(g, hx, hy, 7.5 * s, z.skin, L);
-  g.fillStyle = 'rgba(60,90,30,.35)'; ell(g, hx - 3 * s, hy - 3 * s, 2.5 * s, 1.8 * s, 'rgba(60,90,30,.35)');
-  circ(g, hx + 3 * s, hy - 1.5 * s, 2.3 * s, '#fffbe0'); circ(g, hx + 3.4 * s, hy - 1.4 * s, 1 * s, '#c82020');
-  circ(g, hx - 1.5 * s, hy - 2 * s, 1.8 * s, '#fffbe0'); circ(g, hx - 1.3 * s, hy - 1.9 * s, .8 * s, '#c82020');
-  g.strokeStyle = '#2c1c14'; g.lineWidth = L; g.beginPath(); g.moveTo(hx - 1 * s, hy + 3.5 * s); g.lineTo(hx + 5 * s, hy + 3 * s); g.stroke();
-  for (let i = 0; i < 3; i++) { g.fillStyle = '#fffbe0'; g.fillRect(hx + i * 2 * s - .5 * s, hy + 3 * s, 1.2 * s, 1.5 * s); }
-  g.strokeStyle = sh(z.skin, -.4); g.lineWidth = 1.5 * s; g.beginPath(); g.moveTo(hx - 4 * s, hy - 6 * s); g.lineTo(hx - 2 * s, hy - 8.5 * s); g.moveTo(hx, hy - 7 * s); g.lineTo(hx + 1 * s, hy - 9.5 * s); g.stroke();
+  const armP = (sx: number, sy: number, ex: number, ey: number, hx: number, hy: number, c: string) => { g.lineWidth = 4.4 * s; g.strokeStyle = c; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(hx, hy); g.stroke(); circ(g, hx + 1 * s, hy, 2.6 * s, sh(c, -.08)); for (let f = 0; f < 3; f++) { g.lineWidth = 1.2 * s; g.beginPath(); g.moveTo(hx + 2 * s, hy - 1.5 * s + f * 1.5 * s); g.lineTo(hx + 4.6 * s, hy - 1.8 * s + f * 1.8 * s); g.stroke(); } };
+  armP(-1 * s, -26 * s, 7 * s, -23 * s, 14 * s, -21 * s - arm, sh(z.skin, -.12));
+  /* corpo com camisa rasgada e manchas */
+  const fat = z.id === 'gordo' ? 1.35 : z.id === 'chefe' ? 1.2 : 1;
+  const body = () => { g.beginPath(); g.moveTo(-8 * s * fat, -13 * s); g.lineTo(-7 * s * fat, -30 * s); g.quadraticCurveTo(0, -34.5 * s, 7 * s * fat, -30 * s); g.lineTo(8 * s * fat, -13 * s); for (let i = 0; i < 5; i++) g.lineTo(8 * s * fat - (i + .5) * 3.2 * s * fat, -13 * s + (i % 2 ? 3.5 : -1.5) * s); g.closePath(); };
+  body(); g.fillStyle = grad(g, -8 * s, 0, 8 * s, 0, [[0, sh(z.shirt, -.15)], [.45, sh(z.shirt, .12)], [1, sh(z.shirt, -.25)]]); g.fill();
+  if (g.clip) { g.save(); body(); g.clip(); ell(g, 3 * s, -21 * s, 3 * s, 4 * s, z.skin); for (let r = 0; r < 3; r++) { g.strokeStyle = 'rgba(80,110,60,.6)'; g.lineWidth = .8 * s; g.beginPath(); g.moveTo(1 * s, -23.5 * s + r * 2 * s); g.lineTo(5 * s, -23.5 * s + r * 2 * s); g.stroke(); } ell(g, -4 * s, -26 * s, 3 * s, 2 * s, 'rgba(70,110,40,.55)'); ell(g, -2 * s, -17 * s, 4 * s, 2.4 * s, 'rgba(60,40,20,.25)'); g.restore(); }
+  body(); g.lineWidth = L; g.strokeStyle = ink; g.stroke();
+  if (z.id === 'chefe') { for (let i = 0; i < 4; i++) poly(g, [-6 * s + i * 4 * s, -31 * s, -4 * s + i * 4 * s, -38 * s, -2 * s + i * 4 * s, -31 * s], '#d8d8d8', L * .5); g.fillStyle = '#3c3c3c'; g.fillRect(-8 * s * fat, -18 * s, 16 * s * fat, 2.5 * s); }
+  /* braço da frente esticado */
+  armP(2 * s, -28 * s, 10 * s, -27 * s, 17 * s, -26 * s + arm, z.skin);
+  /* cabeça torta com cabelo ralo */
+  const hx = 2.5 * s, hy = -39 * s;
+  g.save(); g.translate(hx, hy); g.rotate(.18 + (attack ? Math.sin(t * 12) * .08 : 0));
+  circ(g, 0, 0, 7.8 * s, z.skin, L);
+  ell(g, -3 * s, -3.5 * s, 2.8 * s, 2 * s, 'rgba(60,90,30,.35)'); ell(g, 2 * s, 4.5 * s, 3 * s, 1.5 * s, 'rgba(60,90,30,.3)');
+  circ(g, 3.2 * s, -1.2 * s, 2.5 * s, '#fffbe0'); circ(g, 3.6 * s, -1.1 * s, 1.1 * s, '#d02020');
+  circ(g, -1.6 * s, -1.6 * s, 1.9 * s, '#fffbe0'); circ(g, -1.4 * s, -1.5 * s, .8 * s, '#d02020');
+  g.strokeStyle = ink; g.lineWidth = 1.1 * s; g.beginPath(); g.moveTo(-2.5 * s, -4.4 * s); g.lineTo(-.5 * s, -3.6 * s); g.moveTo(1.8 * s, -3.8 * s); g.lineTo(5 * s, -4.4 * s); g.stroke();
+  /* boca aberta com dentes */
+  g.beginPath(); g.ellipse(2 * s, 4 * s, 3.4 * s, attack ? 2.4 * s : 1.6 * s, 0, 0, TAU); g.fillStyle = '#3c1410'; g.fill();
+  for (let i = 0; i < 3; i++) { g.fillStyle = '#fffbe0'; g.fillRect(.2 * s + i * 1.6 * s, 2.6 * s, 1.1 * s, 1.3 * s); }
+  g.strokeStyle = sh(z.skin, -.45); g.lineWidth = 1.4 * s; g.beginPath(); for (const [a, b] of [[-5, -5.5], [-2, -7.2], [1.5, -7.6], [4.5, -6.2]]) { g.moveTo(a * s, b * s); g.lineTo(a * s - 1 * s, b * s - 2.8 * s); } g.stroke();
   g.restore();
+  g.restore();
+}
+
+/* ---------- marcas no chão e plaquinhas de preço ---------- */
+export function decalDraw(g: Ctx2D, k: string, x: number, y: number, r: number, s: number, t: number) {
+  if (k === 'goo') { const a = Math.min(1, (25 - t) / 5) * .75; g.globalAlpha = a; ell(g, x, y, 16 * s, 6 * s, '#5c9c2c', 0, r * .1); for (let i = 0; i < 5; i++) { const aa = r + i * 1.3; circ(g, x + Math.cos(aa) * 16 * s, y + Math.sin(aa) * 6 * s, (2 + (i % 3)) * s, '#6cb034'); } ell(g, x - 3 * s, y - 1.5 * s, 6 * s, 2 * s, 'rgba(200,255,150,.35)'); g.globalAlpha = 1; }
+  else { const a = Math.min(1, (6 - t) / 2); g.globalAlpha = a; g.save(); g.translate(x, y); g.rotate(r); box(g, -2.4, -1, 4.8, 2, .8, '#e0b040'); g.restore(); g.globalAlpha = 1; }
+}
+export function priceTag(g: Ctx2D, x: number, y: number, price: number, ok: boolean, label: string, t: number) {
+  const b = Math.sin(t * 3) * 2, txt = String(price);
+  g.font = '15px "Lilita One","Arial Black",sans-serif'; const lw = label ? g.measureText(label + ' ').width : 0, tw = g.measureText(txt).width + lw;
+  const w = tw + 30, h = 24, x0 = x - w / 2, y0 = y + b - h / 2;
+  box(g, x0, y0 + 3, w, h, 12, 'rgba(0,0,0,.35)'); box(g, x0, y0, w, h, 12, ok ? '#3c8c2c' : 'rgba(40,30,20,.85)', 2);
+  coin(g, x0 + 13, y0 + h - 3, 0, .95);
+  if (label) text(g, label, x0 + 24, y0 + h / 2 + 1, 14, '#fff', 0, 'left');
+  text(g, txt, x0 + 24 + lw, y0 + h / 2 + 1, 15, ok ? '#fff8c0' : '#ffd060', 0, 'left');
 }
 
 /* ---------- muros ---------- */
@@ -231,28 +258,33 @@ export function wallPiece(g: Ctx2D, xa: number, ya: number, xb: number, yb: numb
 
 /* ---------- abrigo ---------- */
 export function shelter(g: Ctx2D, x: number, y: number, t: number, f: number, lvl: number) {
-  ell(g, x + 10, y + 6, 72, 18, 'rgba(0,0,0,.3)');
-  /* sacos de areia na frente */
-  for (let i = 0; i < 9; i++) { const sx = x - 64 + i * 16, sy = y + 8 - (i % 2) * 2; ell(g, sx, sy, 9, 5, '#c8b07c', 1); }
-  /* parede de concreto */
-  g.fillStyle = grad(g, 0, y - 58, 0, y, [[0, '#a8a49c'], [1, '#7c786c']]); g.fillRect(x - 58, y - 56, 116, 56);
-  poly(g, [x + 58, y, x + 76, y - 14, x + 76, y - 70, x + 58, y - 56], '#6c685c', 1.5);
-  g.lineWidth = 1.5; g.strokeStyle = '#2c2a24'; g.strokeRect?.(x - 58, y - 56, 116, 56);
-  g.strokeStyle = 'rgba(0,0,0,.15)'; g.lineWidth = 1; for (let r = 1; r < 4; r++) { g.beginPath(); g.moveTo(x - 58, y - 56 + r * 14); g.lineTo(x + 58, y - 56 + r * 14); g.stroke(); }
-  /* teto */
-  poly(g, [x - 64, y - 54, x + 62, y - 54, x + 82, y - 70, x - 44, y - 70], '#5c5850', 1.5);
-  g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x - 50, y - 68, 110, 4);
-  /* porta blindada, janelinhas com luz */
-  box(g, x - 13, y - 34, 26, 34, 3, '#4c5c3c', 1.5); g.fillStyle = '#3c4c2c'; g.fillRect(x - 13, y - 22, 26, 3); circ(g, x + 7, y - 16, 1.8, '#e8c040');
-  for (const wx of [-40, 26]) { box(g, x + wx, y - 44, 16, 9, 2, `rgba(255,${210 + Math.sin(t * 3 + wx) * 20},120,1)`, 1.2); g.fillStyle = '#2c2a24'; g.fillRect(x + wx + 7, y - 44, 2, 9); }
+  ell(g, x + 12, y + 8, 84, 22, 'rgba(0,0,0,.32)');
+  /* gerador ao lado */
+  box(g, x + 64, y - 22, 26, 22, 3, '#c8a030', 1.5); g.fillStyle = '#2c2c2c'; for (let i = 0; i < 4; i++) g.fillRect(x + 67 + i * 5.5, y - 18, 3, 10); circ(g, x + 84, y - 26, 2.5, (t % 1) < .5 ? '#40ff60' : '#105020');
+  /* parede de concreto com faixa de perigo */
+  g.fillStyle = grad(g, x - 62, 0, x + 62, 0, [[0, '#8c887c'], [.5, '#b4b0a4'], [1, '#848074']]); g.fillRect(x - 62, y - 60, 124, 60);
+  poly(g, [x + 62, y, x + 82, y - 15, x + 82, y - 75, x + 62, y - 60], '#6c685c', 1.5);
+  for (let i = 0; i < 12; i++) poly(g, [x - 62 + i * 10.4, y - 8, x - 56 + i * 10.4, y - 8, x - 62 + i * 10.4 + 10, y, x - 62 + i * 10.4 + 4, y], i % 2 ? '#2c2c2c' : '#f0c020');
+  g.fillStyle = 'rgba(0,0,0,.18)'; for (const cx of [-50, -20, 20, 50]) g.fillRect(x + cx - 1, y - 60, 2, 52);
+  g.lineWidth = 1.5; g.strokeStyle = '#2c2a24'; g.strokeRect?.(x - 62, y - 60, 124, 60);
+  /* teto de zinco ondulado */
+  poly(g, [x - 68, y - 58, x + 66, y - 58, x + 88, y - 76, x - 46, y - 76], '#7c8088', 1.5);
+  g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 1.2; for (let i = 0; i < 14; i++) { const u = i / 14; g.beginPath(); g.moveTo(x - 66 + u * 132, y - 58); g.lineTo(x - 44 + u * 132, y - 76); g.stroke(); }
+  /* porta blindada e janelinhas com grade */
+  box(g, x - 15, y - 38, 30, 38, 3, '#4c5c3c', 1.5); g.fillStyle = '#3c4c2c'; g.fillRect(x - 15, y - 26, 30, 3); g.fillRect(x - 15, y - 14, 30, 3); circ(g, x + 9, y - 19, 2, '#e8c040');
+  for (const wx of [-48, 30]) { box(g, x + wx, y - 48, 18, 11, 2, `rgba(255,${205 + Math.sin(t * 3 + wx) * 25},110,1)`, 1.2); g.fillStyle = '#2c2a24'; for (let k = 1; k < 4; k++) g.fillRect(x + wx + k * 4.5, y - 48, 1.4, 11); }
+  /* holofote no teto */
+  box(g, x + 24, y - 88, 14, 10, 2, '#3c3c40', 1.2); circ(g, x + 38, y - 83, 4, '#fff8c0');
+  /* sacos de areia em duas fileiras */
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 10; i++) { const sx = x - 70 + i * 15.5 + (r % 2) * 7, sy = y + 10 - r * 6; ell(g, sx, sy, 9, 5, r ? '#d8c08c' : '#c8b07c', 1); }
   /* bandeira e antena */
-  g.strokeStyle = '#3c3c3c'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - 40, y - 70); g.lineTo(x - 40, y - 118); g.stroke();
-  const wv = Math.sin(t * 4) * 3; poly(g, [x - 39, y - 118, x - 8, y - 113 + wv, x - 39, y - 100], '#e04838', 1);
-  g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 44, y - 70); g.lineTo(x + 44, y - 100); g.stroke(); circ(g, x + 44, y - 101, 3, (t % 1) < .5 ? '#ff4040' : '#802020');
-  if (lvl > 1) { for (let i = 0; i < Math.min(lvl - 1, 6); i++) box(g, x - 56 + i * 19, y - 76, 16, 6, 2, '#7c9c5c', 1); }
-  /* fumaça quando está machucado */
-  if (f < .5) for (let i = 0; i < 4; i++) { const p = (t * .4 + i / 4) % 1; circ(g, x + 20 + Math.sin(p * 6 + i) * 8, y - 72 - p * 60, 7 + p * 12, `rgba(60,60,60,${(.55 - p * .5) * (1 - f * 1.5)})`); }
-  if (f < .25) for (let i = 0; i < 3; i++) { const fl = Math.sin(t * 15 + i * 2) * 3; poly(g, [x - 20 + i * 20, y - 56, x - 15 + i * 20 + fl, y - 74 - i * 3, x - 10 + i * 20, y - 56], '#ff8020'); }
+  g.strokeStyle = '#3c3c3c'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - 42, y - 76); g.lineTo(x - 42, y - 126); g.stroke();
+  const wv = Math.sin(t * 4) * 3; g.beginPath(); g.moveTo(x - 41, y - 126); g.quadraticCurveTo(x - 24, y - 128 + wv, x - 8, y - 121 + wv); g.lineTo(x - 41, y - 107); g.closePath(); g.fillStyle = '#e04838'; g.fill(); g.lineWidth = 1; g.strokeStyle = '#2c2a24'; g.stroke();
+  g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 52, y - 76); g.lineTo(x + 52, y - 106); g.stroke(); circ(g, x + 52, y - 107, 3, (t % 1) < .5 ? '#ff4040' : '#802020');
+  if (lvl > 1) { for (let i = 0; i < Math.min(lvl - 1, 6); i++) box(g, x - 58 + i * 20, y - 82, 17, 6, 2, '#7c9c5c', 1); }
+  /* fumaça e fogo quando está machucado */
+  if (f < .5) for (let i = 0; i < 4; i++) { const p = (t * .4 + i / 4) % 1; circ(g, x + 20 + Math.sin(p * 6 + i) * 8, y - 78 - p * 60, 7 + p * 12, `rgba(60,60,60,${(.55 - p * .5) * (1 - f * 1.5)})`); }
+  if (f < .25) for (let i = 0; i < 3; i++) { const fl = Math.sin(t * 15 + i * 2) * 3; poly(g, [x - 20 + i * 20, y - 60, x - 15 + i * 20 + fl, y - 80 - i * 3, x - 10 + i * 20, y - 60], '#ff8020'); }
 }
 
 /* ---------- torre de tiro ---------- */

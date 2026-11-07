@@ -22,9 +22,10 @@ tap "LOJA" 1700 960; sleep 2; shot loja
 tap "MELHORIAS" 1500 120; sleep 1; shot loja-melhorias
 tap "BASE" 1700 120; sleep 1; shot loja-base
 back; sleep 1
-tap "COMEÇAR ONDA 1" 2050 960; sleep 15; shot onda
-adb shell input tap 2205 946; sleep 2; shot granada
-adb shell input swipe 1200 600 1500 600 3000; sleep 20; shot onda2
+tap "COMEÇAR ONDA 1" 2050 960; sleep 12; shot onda
+adb shell input swipe 2190 920 2195 925 4000; sleep 1; shot atirando
+adb shell input tap 2000 800; sleep 2; shot granada
+adb shell input swipe 2190 920 2195 925 6000; sleep 15; shot onda2
 sleep 30; shot fim
 adb logcat -d > shots/logcat.txt
 true

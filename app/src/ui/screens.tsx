@@ -62,22 +62,39 @@ function Hud() {
         <Btn label={h.sfx ? '🔊' : '🔇'} size="sm" kind="brown" padH={7} padV={4} onPress={() => game.act.toggleSfx()} a11y="Som" />
       </View>
       <View style={{ position: 'absolute', right: 10 + lay.ins.r, bottom: 10 + lay.ins.b, flexDirection: 'row', gap: 10, alignItems: 'flex-end' }} pointerEvents="box-none">
-        {prep ? <>
+        {prep && <>
           <Btn label="LOJA" kind="green" onPress={() => game.act.openShop()} />
           <Btn label={'COMEÇAR ONDA ' + h.wave} kind="red" onPress={() => game.act.startWave()} start />
-        </> : (
-          <Pressable onPress={() => game.act.grenade()} accessibilityLabel="Granada" style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#1c1408', backgroundColor: h.nade ? 'rgba(90,90,90,.85)' : '#5c8c3c', alignItems: 'center', justifyContent: 'center' }}>
-            <T size={30}>💣</T>
-            {h.nade > 0 && <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><T size={26} stroke={4}>{String(h.nade)}</T></View>}
+        </>}
+        {!prep && (
+          <Pressable onPress={() => game.act.grenade()} accessibilityLabel="Granada" style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 4, borderColor: '#1c1408', backgroundColor: h.nade ? 'rgba(90,90,90,.85)' : '#5c8c3c', alignItems: 'center', justifyContent: 'center', marginBottom: 40 }}>
+            <T size={26}>💣</T>
+            {h.nade > 0 && <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><T size={22} stroke={4}>{String(h.nade)}</T></View>}
           </Pressable>
         )}
+        {!prep && <FireBtn />}
       </View>
       {prep && h.wave === 1 && h.kills === 0 && (
         <View style={[panel, { position: 'absolute', left: 10 + lay.ins.l, bottom: 10 + lay.ins.b, maxWidth: Math.min(330, lay.W * .4), padding: 8 }]} pointerEvents="none">
-          <B size={12} w="black">Arraste o dedo para andar. Você atira sozinho no zumbi mais perto. Pegue as moedas que eles soltam e melhore a base na LOJA!</B>
+          <B size={12} w="black">Arraste o dedo para andar e segure ATIRAR (a mira vai sozinha no zumbi mais perto). Toque no + do chão para pôr uma torre com as moedas!</B>
         </View>
       )}
     </View>
+  );
+}
+
+/** segure para atirar (a mira vai sozinha no zumbi mais perto) */
+function FireBtn() {
+  const game = useGame();
+  const [on, setOn] = React.useState(false);
+  const set = (v: boolean) => { setOn(v); game.act.fire(v); };
+  return (
+    <Pressable onPressIn={() => set(true)} onPressOut={() => set(false)} accessibilityLabel="Atirar"
+      style={{ width: 104, height: 104, borderRadius: 52, borderWidth: 5, borderColor: '#1c1408', backgroundColor: on ? '#c03030' : '#e04848', alignItems: 'center', justifyContent: 'center', transform: [{ scale: on ? .93 : 1 }] }}>
+      <View style={{ position: 'absolute', left: 8, right: 8, top: 6, height: 36, borderRadius: 30, backgroundColor: 'rgba(255,255,255,.22)' }} />
+      <T size={34}>🔫</T>
+      <T size={14} stroke={3} style={{ marginTop: -4 }}>ATIRAR</T>
+    </Pressable>
   );
 }
 

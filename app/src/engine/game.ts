@@ -3,7 +3,7 @@
    Cada zumbi solta moedas; entre as ondas você compra armas, melhorias, muros e torres.
    As telas em React Native leem `ui`/`info` e chamam `act`. */
 import { WORLD, BASE, HQ, TURRET_SLOTS, WALL_SEG, GUNS, ZOMBIES, WALL_LV, TURRET_LV, UPGRADES, upgPrice, waveSpec, PLAYER_HP, HQ_HP, PLAYER_SP, type ZType } from './data';
-import { drawGround, soldier, zombie as drawZombie, wallPiece, shelter, turret as drawTurret, coin as drawCoin, boom, text, circ, ell, box, setCanvasMaker, makeCanvas, iconImage, TAU } from './draw';
+import { drawGround, decalDraw, priceTag, soldier, zombie as drawZombie, wallPiece, shelter, turret as drawTurret, coin as drawCoin, boom, text, circ, ell, box, setCanvasMaker, makeCanvas, iconImage, TAU } from './draw';
 import type { Platform, Ctx2D, Insets, PtrEv, OffCanvas } from './types';
 
 export type Game = ReturnType<typeof createGame>;
@@ -68,7 +68,9 @@ export function createGame(pf: Platform) {
   let floats: { x: number; y: number; s: string; c: string; t: number; sz: number }[] = [];
   const tur = TURRET_SLOTS.map(() => ({ cd: 0, ang: -Math.PI / 2, flash: 0 }));
   let phase: 'prep' | 'wave' | 'lost' = 'prep', queue: string[] = [], spawnT = 0, spec = waveSpec(save.wave), nadeCd = 0, uidN = 1;
-  let clock = 0, bannerS = '', bannerT = 0, shake = 0;
+  let clock = 0, bannerS = '', bannerT = 0, shake = 0, firing = false, pflash = 0;
+  let decals: { x: number; y: number; k: string; t: number; r: number; s: number }[] = [];
+  const decal = (x: number, y: number, k: string, s = 1) => { decals.push({ x, y, k, t: 0, r: Math.random() * 6.28, s }); if (decals.length > 140) decals.shift(); };
   function banner(s: string) { bannerS = s; bannerT = 2.6; }
   function resetBase() { walls = SEGS.map(() => WALL_LV[save.wallLv].hp); hq = hqMax(); pl.hp = maxHp(); pl.dead = 0; }
 
@@ -104,7 +106,7 @@ export function createGame(pf: Platform) {
     z.hp -= d; z.hit = .14; z.x += kx; z.y += ky;
     if (Math.random() < .5) floats.push({ x: z.x + (Math.random() - .5) * 10, y: z.y - 40 * z.T.size, s: String(Math.round(d)), c: '#fff', t: .6, sz: 13 });
     if (z.hp <= 0) {
-      z.die = .001; save.kills++; sfx('zdie', .7, 60);
+      z.die = .001; save.kills++; sfx('zdie', .7, 60); decal(z.x, z.y, 'goo', z.T.size);
       const total = Math.round(z.T.coin * (1 + (save.wave - 1) * .04)), n = Math.min(8, Math.max(1, Math.ceil(total / 3)));
       for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 90; coins.push({ x: z.x, y: z.y, v: Math.max(1, Math.round(total / n)), t: 0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6, fly: false }); }
     } else sfx('hit', .5, 50);
@@ -137,6 +139,7 @@ export function createGame(pf: Platform) {
       for (const f of floats) { f.t -= dt; f.y -= 30 * dt; } floats = floats.filter(f => f.t > 0);
       for (const b of booms) b.t += dt * 1.8; booms = booms.filter(b => b.t < 1);
       for (const t of tur) t.flash = Math.max(0, t.flash - dt * 8);
+      pflash = Math.max(0, pflash - dt * 14); for (const d of decals) d.t += dt; decals = decals.filter(d => d.t < (d.k === 'goo' ? 25 : 6));
       pf.audio.music(phase === 'wave' ? 'fight' : 'prep');
       if (phase === 'lost') return;
       playerTick(dt);
@@ -161,22 +164,24 @@ export function createGame(pf: Platform) {
     pl.hurt = Math.max(0, pl.hurt - dt); pl.t += dt;
     if (pl.dead > 0) { pl.dead -= dt; if (pl.dead <= 0) { pl.dead = 0; pl.hp = maxHp(); pl.x = HQ.x; pl.y = HQ.y + 90; sfx('click'); } return; }
     let mx = joy.dx, my = joy.dy;
-    if (keys.size) { mx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); my = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0); }
+    if ([...keys].some(k => k !== 'Space' && k !== 'KeyJ')) { mx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0); my = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0); }
     const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
     pl.moving = Math.hypot(mx, my) > .1;
     if (pl.moving) { pl.x = clamp(pl.x + mx * PLAYER_SP * dt, 30, WORLD.w - 30); pl.y = clamp(pl.y + my * PLAYER_SP * dt, 40, WORLD.h - 20); }
     /* o abrigo é sólido */
     const dx = pl.x - HQ.x, dy = (pl.y - HQ.y) * 1.6, d = Math.hypot(dx, dy), R = HQ.r + 34;
     if (d < R) { pl.x = HQ.x + dx / (d || 1) * R; pl.y = HQ.y + dy / (d || 1) * R / 1.6; }
-    const G = gun(), tg = phase === 'wave' ? nearest(pl.x, pl.y - 20, G.range) : null;
-    if (tg) pl.aim = Math.atan2(tg.y - 20 * tg.T.size - (pl.y - 24), tg.x - pl.x);
+    const G = gun(), tg = nearest(pl.x, pl.y - 20, G.range);
+    if (tg) pl.aim = Math.atan2(tg.y - 26 * tg.T.size - (pl.y - 30), tg.x - pl.x);
     else if (pl.moving) pl.aim = Math.atan2(my, mx);
     pl.cd -= dt;
-    if (tg && pl.cd <= 0) {
-      pl.cd = 1 / (G.rate * rateMul());
+    const want = firing || keys.has('Space') || keys.has('KeyJ');
+    if (want && pl.cd <= 0) {
+      pl.cd = 1 / (G.rate * rateMul()); pflash = 1;
+      decal(pl.x - Math.cos(pl.aim) * 8 + (Math.random() - .5) * 14, pl.y + 4 + Math.random() * 6, 'shell');
       for (let i = 0; i < G.pellets; i++) {
         const a = pl.aim + (Math.random() - .5) * G.spread * 2, sp = 950;
-        buls.push({ x: pl.x + Math.cos(pl.aim) * 26, y: pl.y - 24 + Math.sin(pl.aim) * 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: G.range / sp, dmg: G.dmg * dmgMul(), pierce: G.id === 'rifle' ? 5 : 1, hits: [], col: G.id === 'rifle' ? '#9cf0ff' : '#ffe070', w: G.id === 'rifle' ? 5 : 3 });
+        buls.push({ x: pl.x + Math.cos(pl.aim) * 34, y: pl.y - 30 + Math.sin(pl.aim) * 34, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: G.range / sp, dmg: G.dmg * dmgMul(), pierce: G.id === 'rifle' ? 5 : 1, hits: [], col: G.id === 'rifle' ? '#9cf0ff' : '#ffe070', w: G.id === 'rifle' ? 5 : 3 });
       }
       sfx(G.id === 'espingarda' ? 'shotgun' : G.id === 'rifle' ? 'laser' : G.id === 'metralhadora' ? 'mg' : 'shot', .55, G.id === 'metralhadora' ? 70 : 0);
     }
@@ -211,7 +216,7 @@ export function createGame(pf: Platform) {
       const lv = save.turrets[i]; if (!lv) return;
       const T = TURRET_LV[lv], st = tur[i]; st.cd -= dt;
       const tg = nearest(s.x, s.y - 26, T.range); if (!tg) return;
-      const a = Math.atan2(tg.y - 20 * tg.T.size - (s.y - 26), tg.x - s.x);
+      const a = Math.atan2(tg.y - 26 * tg.T.size - (s.y - 26), tg.x - s.x);
       st.ang = a;
       if (st.cd <= 0) { st.cd = 1 / T.rate; st.flash = 1; const sp = 900; buls.push({ x: s.x + Math.cos(a) * 26, y: s.y - 26 + Math.sin(a) * 26, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: T.range / sp, dmg: T.dmg, pierce: 1, hits: [], col: '#ffb040', w: 3 }); sfx('turret', .3, 90); }
     });
@@ -223,8 +228,8 @@ export function createGame(pf: Platform) {
         b.x += b.vx * dt / steps; b.y += b.vy * dt / steps; b.life -= dt / steps;
         for (const z of zs) {
           if (z.die > 0 || b.hits.includes(z.uid)) continue;
-          const zy = z.y - 20 * z.T.size;
-          if (Math.hypot(z.x - b.x, (zy - b.y) * .8) < z.T.r + 6) { b.hits.push(z.uid); hurtZ(z, b.dmg, b.vx * .004, b.vy * .004); if (b.hits.length >= b.pierce) { b.life = 0; break; } }
+          const zy = z.y - 26 * z.T.size;
+          if (Math.hypot(z.x - b.x, (zy - b.y) * .75) < z.T.r * 1.3 + 6) { b.hits.push(z.uid); hurtZ(z, b.dmg, b.vx * .004, b.vy * .004); if (b.hits.length >= b.pierce) { b.life = 0; break; } }
         }
       }
     }
@@ -300,7 +305,8 @@ export function createGame(pf: Platform) {
       const [vx0, vy0] = toWorld(-80, -120), [vx1, vy1] = toWorld(W + 80, H + 140);
       const vis = (x: number, y: number) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
       /* moedas no chão */
-      for (const c of coins) if (vis(c.x, c.y)) drawCoin(g, c.x, c.y, clock + c.x * .01, 1);
+      for (const d of decals) if (vis(d.x, d.y)) decalDraw(g, d.k, d.x, d.y, d.r, d.s, d.t);
+      for (const c of coins) if (vis(c.x, c.y)) drawCoin(g, c.x, c.y, clock + c.x * .01, 1.2);
       const items: { y: number; f: () => void }[] = [];
       SEGS.forEach((s, i) => {
         const my = (s.ya + s.yb) / 2; if (!vis((s.xa + s.xb) / 2, my)) return;
@@ -309,15 +315,21 @@ export function createGame(pf: Platform) {
         else items.push({ y: my, f: () => wallPiece(g, s.xa, s.ya, s.xb, s.yb, save.wallLv, f, i) });
       });
       items.push({ y: HQ.y, f: () => shelter(g, HQ.x, HQ.y, clock, hq / hqMax(), save.upg.abrigo + 1) });
-      TURRET_SLOTS.forEach((s, i) => { if (save.turrets[i] || phase === 'prep') items.push({ y: s.y, f: () => drawTurret(g, s.x, s.y, save.turrets[i], tur[i].ang, clock, tur[i].flash) }); });
+      TURRET_SLOTS.forEach((s, i) => { items.push({ y: s.y, f: () => drawTurret(g, s.x, s.y, save.turrets[i], tur[i].ang, clock, tur[i].flash) }); });
       for (const z of zs) if (vis(z.x, z.y)) items.push({ y: z.y, f: () => {
-        drawZombie(g, z.T, z.x, z.y, z.T.size * 1.05, z.t, z.face, z.hit / .14, z.die, z.atk);
-        if (z.hp < z.max && z.die <= 0) { const w = 26 * z.T.size, yy = z.y - 50 * z.T.size; box(g, z.x - w / 2 - 1, yy - 1, w + 2, 6, 2, '#1c1c1c'); box(g, z.x - w / 2, yy, w * Math.max(0, z.hp / z.max), 4, 1.5, z.T.id === 'chefe' ? '#e040e0' : '#e04040'); }
+        drawZombie(g, z.T, z.x, z.y, z.T.size * 1.3, z.t, z.face, z.hit / .14, z.die, z.atk);
+        if (z.hp < z.max && z.die <= 0) { const w = 30 * z.T.size, yy = z.y - 64 * z.T.size; box(g, z.x - w / 2 - 1, yy - 1, w + 2, 6, 2, '#1c1c1c'); box(g, z.x - w / 2, yy, w * Math.max(0, z.hp / z.max), 4, 1.5, z.T.id === 'chefe' ? '#e040e0' : '#e04040'); }
       } });
-      if (pl.dead <= 0) items.push({ y: pl.y, f: () => { const G = gun(); soldier(g, pl.x, pl.y, 1.1, pl.aim, pl.t, pl.moving, pl.hurt / .3, G.id, G.col); } });
+      if (pl.dead <= 0) items.push({ y: pl.y, f: () => { const G = gun(); soldier(g, pl.x, pl.y, 1.35, pl.aim, pl.t, pl.moving, pl.hurt / .3, G.id, G.col, pflash); } });
       else items.push({ y: pl.y, f: () => { g.globalAlpha = .5; ell(g, pl.x, pl.y, 14, 5, 'rgba(0,0,0,.4)'); text(g, '✚', pl.x, pl.y - 20, 22, '#ff5050', 3); g.globalAlpha = 1; } });
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.f();
+      /* plaquinhas de preço: tocar no chão compra/melhora */
+      if (pl.dead <= 0) {
+        TURRET_SLOTS.forEach((s, i) => { const lv = save.turrets[i]; if (lv < TURRET_LV.length - 1) priceTag(g, s.x, s.y + (lv ? 30 : 30), TURRET_LV[lv].price, save.coins >= TURRET_LV[lv].price, lv ? '⬆' : '', clock + i); });
+        if (save.wallLv + 1 < WALL_LV.length) priceTag(g, BASE.x, by1 + 26, WALL_LV[save.wallLv + 1].price, save.coins >= WALL_LV[save.wallLv + 1].price, '⬆ MURO', clock);
+        const U = UPGRADES.find(u => u.id === 'abrigo')!, al = save.upg.abrigo || 0; if (al < U.max) priceTag(g, HQ.x + 92, HQ.y - 60, upgPrice(U, al), save.coins >= upgPrice(U, al), '⬆', clock + 2);
+      }
       /* barra do abrigo */
       { const f = Math.max(0, hq / hqMax()), w = 110; box(g, HQ.x - w / 2 - 2, HQ.y - 140, w + 4, 11, 4, '#1c1c1c'); box(g, HQ.x - w / 2, HQ.y - 138, w * f, 7, 3, f > .5 ? '#4cd060' : f > .25 ? '#f0b030' : '#e04040'); }
       /* tiros, granadas, explosões */
@@ -358,14 +370,18 @@ export function createGame(pf: Platform) {
     if (tapd) tap(ev.x, ev.y);
   }
   function tap(sx: number, sy: number) {
-    if (phase !== 'prep') return;
+    if (pl.dead > 0) return;
     const [wx, wy] = toWorld(sx, sy);
-    const ti = TURRET_SLOTS.findIndex(s => Math.hypot(wx - s.x, (wy - s.y + 10) * 1.3) < 40);
-    if (ti >= 0 || Math.hypot(wx - HQ.x, (wy - HQ.y + 30) * 1.2) < 80) openShop('base');
+    const ti = TURRET_SLOTS.findIndex(s => Math.hypot(wx - s.x, (wy - s.y + 14) * 1.2) < 46);
+    if (ti >= 0) { turretUp(ti); return; }
+    if (Math.hypot(wx - (HQ.x + 92), wy - (HQ.y - 60)) < 34) { buyUpg('abrigo'); return; }
+    if (Math.abs(wx - BASE.x) < 70 && Math.abs(wy - (by1 + 26)) < 30) { wallUp(); return; }
+    if (phase === 'prep' && Math.hypot(wx - HQ.x, (wy - HQ.y + 30) * 1.2) < 70) openShop('melhorias');
   }
   function keyDown(code: string) {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) { keys.add(code); return true; }
-    if (code === 'KeyG' || code === 'Space') { grenade(); return true; }
+    if (code === 'Space' || code === 'KeyJ') { keys.add(code); return true; }
+    if (code === 'KeyG') { grenade(); return true; }
     if (code === 'Enter' && phase === 'prep' && !ui.show.shop) { startWave(); return true; }
     return false;
   }
@@ -391,7 +407,9 @@ export function createGame(pf: Platform) {
   function wallUp() {
     const n = save.wallLv + 1; if (n >= WALL_LV.length) { toast('Os muros já são de metal!'); return; }
     if (!pay(WALL_LV[n].price)) return;
-    save.wallLv = n; resetBase(); sfx('build'); toast('Muros de ' + WALL_LV[n].name.toLowerCase() + '!'); persist(); emit();
+    const old = WALL_LV[n - 1].hp; save.wallLv = n;
+    if (phase === 'prep') resetBase(); else walls = walls.map(w => w > 0 ? Math.round(w / old * WALL_LV[n].hp) : 0);
+    sfx('build'); toast('Muros de ' + WALL_LV[n].name.toLowerCase() + '!'); persist(); emit();
   }
   function turretUp(i: number) {
     const lv = save.turrets[i]; if (lv >= TURRET_LV.length - 1) { toast('Torre no nível máximo!'); return; }
@@ -422,7 +440,7 @@ export function createGame(pf: Platform) {
   /* ---------- ações das telas ---------- */
   const act = {
     btnSound: (k?: string) => sfx(k === 'back' ? 'back' : 'click'),
-    startWave, retry, grenade, openShop, closeShop: () => { ui.show.shop = false; emit(); }, tab: (t: string) => { shopTab = t; sfx('click'); emit(); },
+    startWave, retry, grenade, openShop, fire: (on: boolean) => { firing = !!on; }, closeShop: () => { ui.show.shop = false; emit(); }, tab: (t: string) => { shopTab = t; sfx('click'); emit(); },
     buyGun, buyUpg, wallUp, turretUp,
     toggleSfx: () => { save.sfx = !save.sfx; pf.audio.setVolumes(save.sfx, save.mus); persist(); emit(); },
     toggleMus: () => { save.mus = !save.mus; pf.audio.setVolumes(save.sfx, save.mus); persist(); emit(); },
