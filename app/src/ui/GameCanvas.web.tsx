@@ -23,6 +23,8 @@ export function GameCanvas({ game, W, H, rot }: { game: Game; W: number; H: numb
     const move = (ev: any) => game.input.ptrMove(E(ev));
     const up = (ev: any) => game.input.ptrUp(E(ev), ev.type === 'pointercancel');
     const ctxm = (ev: any) => ev.preventDefault();
+    const wh = (ev: any) => { ev.preventDefault(); const p = L(ev); (game.input as any).wheel?.(ev.deltaY, p.x, p.y); };
+    cv.addEventListener('wheel', wh, { passive: false });
     cv.addEventListener('pointerdown', down); cv.addEventListener('pointermove', move);
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('contextmenu', ctxm);
     const kd = (ev: any) => { if (ev.target && ev.target.tagName === 'INPUT') return; if (game.input.keyDown(ev.code)) ev.preventDefault(); };

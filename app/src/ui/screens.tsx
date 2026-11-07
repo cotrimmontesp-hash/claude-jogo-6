@@ -1,7 +1,7 @@
 /* Telas da Vila Selvagem em React Native: barra de materiais, botões, construir/melhorar,
-   bichos, moradores, mapa das expedições, expedição, prêmio diário e "enquanto você estava fora". */
+   bichos, moradores, painel da região tocada no mundo, expedição, prêmio diário e "enquanto você estava fora". */
 import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Btn, C, Card, FONT, OText, Ov, Pix, XpBar, useGame, useInfo, useLay } from './kit';
 import { TOP_H, LEFT_W, BOTTOM_H } from '../engine/game';
 
@@ -15,7 +15,7 @@ export function Screens() {
       {S.beasts && <Beasts />}
       {S.people && <People />}
       {S.exped && <Exped />}
-      {S.map && <MapScreen />}
+      {S.region && !S.build && <RegionPanel />}
       {S.away && <Away />}
       {!S.away && S.daily && <Daily />}
       <Toast />
@@ -76,7 +76,7 @@ function Hud() {
         <Btn label={c.sfx ? '🔊' : '🔇'} size="sm" kind="brown" padH={7} padV={4} onPress={() => game.act.toggleSfx()} a11y="Som" />
       </View>
       <View style={{ position: 'absolute', left: 6 + lay.ins.l, top: TOP_H + lay.ins.t + 2, width: LEFT_W - 12, gap: lay.short ? 3 : 6 }} pointerEvents="box-none">
-        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('map')} />{c.free > 0 && <Badge n={c.free} />}</View>
+        <View><Btn label="EXPEDIÇÃO" kind="red" size="sm" fontSize={13} padH={6} onPress={() => game.act.goExped()} />{c.free > 0 && <Badge n={c.free} />}</View>
         <Btn label="BICHOS" kind="green" size="sm" onPress={() => game.act.open('beasts')} />
         <Btn label="MORADORES" kind="purple" size="sm" fontSize={13} padH={6} onPress={() => game.act.open('people')} />
         <View><Btn label="PRÊMIO" kind="gold" size="sm" onPress={() => game.act.openDaily()} />{c.dailyCan && <Badge />}</View>
@@ -117,6 +117,12 @@ function BuildSheet() {
                 <B>{b.desc}</B>
               </View>
             </View>
+            {!!b.crop && <View style={[panel, { padding: 8, gap: 5, backgroundColor: '#fff4d0' }]}>
+              <B w="black">{b.crop.state === 'vazio' ? 'A terra está vazia.' : b.crop.state === 'pronta' ? 'Plantação pronta para colher!' : 'Crescendo… pronta em ' + b.crop.left + 's'}</B>
+              <B size={11} color={C.sub}>{'Cada colheita dá ' + b.crop.yield + ' de comida e leva ' + b.crop.time + 's para crescer.'}</B>
+              {b.crop.state === 'vazio' && <Btn label="PLANTAR" kind="play" onPress={() => game.act.plant()} />}
+              {b.crop.state === 'pronta' && <Btn label="COLHER" kind="play" onPress={() => game.act.harvest()} />}
+            </View>}
             {b.rate.length > 0 && <View style={{ gap: 3 }}><B size={11} w="black" color={C.sub}>PRODUZ POR HORA</B><Bag list={b.rate} /></View>}
             {b.stock.length > 0 && <View style={{ gap: 3 }}><B size={11} w="black" color={C.sub}>PRONTO PARA RECOLHER</B><Bag list={b.stock} /></View>}
             {b.next ? <View style={[panel, { padding: 8, gap: 5, backgroundColor: '#f2f8e4' }]}>
@@ -287,7 +293,7 @@ function Exped() {
             ))}
           </ScrollView>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Btn label="◄ MAPA" kind="brown" size="sm" onPress={() => game.act.back()} />
+            <Btn label="◄ VOLTAR" kind="brown" size="sm" onPress={() => game.act.back()} />
             <Btn label="PARTIR!" kind="play" disabled={!team.length} onPress={() => { game.act.expStart(type, team, pets); setTeam([]); setPets([]); }} start />
           </View>
         </>
@@ -330,47 +336,23 @@ function Exped() {
   );
 }
 
-/* ---------- mapa (escolher para onde ir) ---------- */
-function MapScreen() {
+/* ---------- região tocada no mundo ---------- */
+function RegionPanel() {
   const game = useGame(), lay = useLay();
-  const m = useInfo(() => game.info.map());
-  const [pick, setPick] = useState<number | null>(null);
-  const top = 52 + lay.ins.t, mw = lay.W - lay.ins.l - lay.ins.r - 16, mh = lay.H - top - lay.ins.b - 8;
-  const P = (n: any) => ({ x: (n.x * .9 + .05) * mw, y: (n.y * .84 + .08) * mh });
-  const sel = pick != null ? m.nodes[pick] : null;
-  const panelLeft = sel ? P(sel).x > mw * .55 : false;
+  const sel = useInfo(() => game.info.region());
+  if (sel.id < 0) return null;
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3a2614' }]}>
-      <View style={{ position: 'absolute', left: 16 + lay.ins.l, right: 16 + lay.ins.r, top: 6 + lay.ins.t }}>
-        <Head title="PARA ONDE VAMOS?" onClose={() => game.act.closeScreen('map')} />
+    <View style={[panel, { position: 'absolute', right: 12 + lay.ins.r, bottom: BOTTOM_H + 8 + lay.ins.b, width: Math.min(340, lay.W * .42), padding: 10, gap: 4 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <T size={17} color={C.ink} style={{ flex: 1 }}>{sel.name + (sel.explored ? '' : sel.seen ? '  (inexplorada)' : '')}</T>
+        <Pressable onPress={() => game.act.closeScreen('region')} hitSlop={10} accessibilityLabel="Fechar"><T size={20} color={C.sub}>✕</T></Pressable>
       </View>
-      <View style={{ position: 'absolute', left: 8 + lay.ins.l, top, width: mw, height: mh, borderRadius: 14, overflow: 'hidden' }}>
-        {!!m.bg && <Image source={{ uri: m.bg }} style={{ position: 'absolute', left: 0, top: 0, width: mw, height: mh }} resizeMode="stretch" />}
-        {m.nodes.map((n: any) => {
-          const p = P(n), sz = n.home ? 40 : 34, on = pick === n.id;
-          const badge = n.home ? '🏠' : n.explored ? '★' : !n.seen ? '?' : n.miss.length ? '🔒' : '!';
-          const bc = n.home ? C.gold : n.explored ? '#3c8c2c' : !n.seen ? '#8c96a4' : n.miss.length ? C.coral : '#f0a020';
-          return (
-            <Pressable key={n.id} onPress={() => { game.act.btnSound('click'); setPick(n.id); }} hitSlop={14} style={{ position: 'absolute', left: p.x - 60, top: p.y - sz / 2, width: 120, alignItems: 'center' }} accessibilityLabel={n.name}>
-              <View style={{ width: sz, height: sz, borderRadius: sz / 2, borderWidth: on ? 4 : 3, borderColor: on ? '#fff' : C.ink, backgroundColor: bc, alignItems: 'center', justifyContent: 'center', opacity: n.seen ? 1 : .75 }}>
-                <T size={n.home ? 18 : 16} stroke={3}>{badge}</T>
-              </View>
-              {n.seen && <View pointerEvents="none" style={{ marginTop: 2, backgroundColor: on ? C.ink : 'rgba(46,36,24,.78)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}><B size={11} w="black" color="#fff" lines={1}>{n.name}</B></View>}
-            </Pressable>
-          );
-        })}
-      </View>
-      {sel && (
-        <View style={[panel, { position: 'absolute', [panelLeft ? 'left' : 'right']: 16 + (panelLeft ? lay.ins.l : lay.ins.r), bottom: 14 + lay.ins.b, width: Math.min(340, lay.W * .42), padding: 10, gap: 4 }]}>
-          <T size={17} color={C.ink}>{sel.name + (sel.explored ? '' : sel.seen ? '  (inexplorado)' : '')}</T>
-          <B size={12}>{sel.desc}</B>
-          {sel.seen && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><B size={11} w="black" color={C.sub}>TEM:</B><Bag list={sel.loot} size={18} /></View>}
-          {sel.beasts.length > 0 && <B size={11} w="black" color={C.blue}>{'Bichos: ' + sel.beasts.join(', ')}</B>}
-          {!sel.seen ? <B w="black" color={C.sub}>Explore as regiões vizinhas para descobrir.</B>
-            : sel.miss.length ? <B w="black" color={C.coral}>{'Falta: ' + sel.miss.join(' e ')}</B>
-              : <Btn label="MONTAR EXPEDIÇÃO" kind="play" onPress={() => game.act.pickRegion(sel.id)} />}
-        </View>
-      )}
+      <B size={12}>{sel.desc}</B>
+      {sel.seen && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><B size={11} w="black" color={C.sub}>TEM:</B><Bag list={sel.loot} size={18} /></View>}
+      {sel.beasts.length > 0 && <B size={11} w="black" color={C.blue}>{'Bichos: ' + sel.beasts.join(', ')}</B>}
+      {!sel.seen ? null
+        : sel.miss.length ? <B w="black" color={C.coral}>{'Falta: ' + sel.miss.join(' e ')}</B>
+          : <Btn label="MONTAR EXPEDIÇÃO" kind="play" onPress={() => game.act.pickRegion(sel.id)} />}
     </View>
   );
 }

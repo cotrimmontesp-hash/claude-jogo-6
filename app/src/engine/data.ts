@@ -18,7 +18,7 @@ export const BLVL_MAX = 3;
 export const BLVL_PROD = [1, 1.8, 2.7];
 export const BUILDINGS: Building[] = [
   { id: 'casa', name: 'Casa', cost: { madeira: 12 }, homes: 2, from: 0, desc: 'Abriga moradores (2 por nível).' },
-  { id: 'fazenda', name: 'Fazenda', cost: { madeira: 10 }, prod: { comida: 180 }, from: 0, desc: 'Planta comida para a vila e para os bichos.' },
+  { id: 'fazenda', name: 'Fazenda', cost: { madeira: 10 }, from: 0, desc: 'Toque para plantar; espere crescer e toque de novo para colher.' },
   { id: 'serraria', name: 'Serraria', cost: { madeira: 6, pedra: 6 }, prod: { madeira: 140 }, from: 0, desc: 'Corta e empilha madeira.' },
   { id: 'poco', name: 'Poço', cost: { pedra: 12 }, prod: { agua: 140 }, cap: { agua: 100 }, from: 0, desc: 'Tira água e guarda mais.' },
   { id: 'armazem', name: 'Armazém', cost: { madeira: 20, pedra: 12 }, cap: { comida: 150, madeira: 150, pedra: 150, agua: 100, metal: 60, escamas: 60, cristal: 60 }, from: 0, desc: 'Guarda mais de tudo (mais a cada nível).' },
@@ -75,6 +75,14 @@ export interface Region {
   id: number; name: string; x: number; y: number; bg: string; bg2: string; loot: Bag; need?: Trait[]; beastLvl?: number;
   desc: string; danger: number; people: string[]; gift?: Bag; food: number; water: number;
 }
+/** onde cada região fica no mundo (a vila ocupa x 0..1000, y 0..600) */
+export const REGION_POS: { x: number; y: number; r: number }[] = [
+  { x: 515, y: 330, r: 0 }, { x: -520, y: 20, r: 360 }, { x: -470, y: 820, r: 330 }, { x: 470, y: 1150, r: 340 }, { x: 1520, y: -170, r: 320 },
+  { x: 1530, y: 860, r: 350 }, { x: 2230, y: -560, r: 220 }, { x: 1180, y: 1430, r: 250 }, { x: 520, y: -520, r: 320 }, { x: 2280, y: 430, r: 380 },
+];
+export const WORLD = { x0: -1050, y0: -1000, x1: 2750, y1: 1720 };
+/** mar no canto de cima à direita (a Ilha Perdida fica dentro dele) */
+export const SEA = { x: 2380, y: -760, rx: 1080, ry: 820 };
 export const REGIONS: Region[] = [
   { id: 0, name: 'Campina Verde', x: .1, y: .55, bg: '#8cd468', bg2: '#74c058', loot: { comida: 40, madeira: 35 }, desc: 'Em volta da vila. Calma e cheia de capim.', danger: 0, people: ['explorador'], food: 4, water: 2 },
   { id: 1, name: 'Floresta Antiga', x: .3, y: .3, bg: '#3c9c4c', bg2: '#2c8040', loot: { madeira: 70, comida: 50 }, desc: 'Muita madeira e comida, mas cheia de feras.', danger: .2, people: ['cuidador', 'explorador'], gift: { madeira: 40 }, food: 8, water: 4 },
@@ -130,3 +138,22 @@ export const DAILY = [
   { txt: 'BAÚ: um filhote de bicho + materiais', bag: { comida: 80, madeira: 80, pedra: 80, metal: 20 }, beast: true },
 ];
 export const OFFLINE_MAX_H = 12;
+
+/* ---------- coleta: árvores, pedras e arbustos em volta da vila ---------- */
+export type NodeKind = 'arvore' | 'pedra' | 'arbusto';
+export const NODE_INFO: { [k in NodeKind]: { res: Res; per: number; uses: number; regrow: number; work: number; name: string } } = {
+  arvore: { res: 'madeira', per: 10, uses: 3, regrow: 150, work: 3.2, name: 'Árvore' },
+  pedra: { res: 'pedra', per: 8, uses: 4, regrow: 240, work: 3.8, name: 'Pedra' },
+  arbusto: { res: 'comida', per: 7, uses: 2, regrow: 100, work: 2.4, name: 'Arbusto de frutas' },
+};
+export const NODES: { kind: NodeKind; x: number; y: number }[] = [
+  { kind: 'arvore', x: 100, y: 112 }, { kind: 'arvore', x: 330, y: 115 }, { kind: 'arvore', x: 925, y: 128 }, { kind: 'arvore', x: 88, y: 300 },
+  { kind: 'arvore', x: -40, y: 200 }, { kind: 'arvore', x: -60, y: 420 }, { kind: 'arvore', x: 40, y: 30 }, { kind: 'arvore', x: 220, y: -20 },
+  { kind: 'arvore', x: 1010, y: 250 }, { kind: 'arvore', x: 1060, y: 120 }, { kind: 'arvore', x: -20, y: 560 }, { kind: 'arvore', x: 760, y: -20 },
+  { kind: 'pedra', x: 950, y: 290 }, { kind: 'pedra', x: 850, y: 578 }, { kind: 'pedra', x: 1020, y: 520 }, { kind: 'pedra', x: 300, y: 625 },
+  { kind: 'pedra', x: 1080, y: 650 }, { kind: 'pedra', x: -80, y: 655 }, { kind: 'pedra', x: 640, y: 645 },
+  { kind: 'arbusto', x: 680, y: 105 }, { kind: 'arbusto', x: 470, y: 622 }, { kind: 'arbusto', x: -120, y: 80 }, { kind: 'arbusto', x: 1100, y: 380 },
+  { kind: 'arbusto', x: 130, y: 650 }, { kind: 'arbusto', x: 980, y: -30 },
+];
+/** plantação da fazenda: tempo para crescer (s) e colheita, por nível */
+export const GROW_S = [80, 65, 50], HARVEST = [30, 50, 75];

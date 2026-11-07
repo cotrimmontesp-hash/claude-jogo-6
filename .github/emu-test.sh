@@ -18,14 +18,12 @@ tap(){
 back(){ adb shell input keyevent 4; sleep 2; }
 shot inicio
 tap "PEGAR PRÊMIO" 1100 800; sleep 2; tap "FECHAR" 1400 800; sleep 2; shot vila
-tap "RECOLHER" 2100 980; sleep 2; shot recolher
-adb shell input tap 1680 684; sleep 2; shot construcao
-back
+adb shell input tap 630 449; sleep 7; shot coleta
+adb shell input tap 1553 400; sleep 2; shot plantar
+adb shell input swipe 1500 650 700 520 700; sleep 2; shot arrastar
 tap "BICHOS" 324 306; sleep 2; shot bichos; back
-tap "MORADORES" 324 426; sleep 2; shot moradores; back
-tap "EXPEDIÇÃO" 324 189; sleep 2; shot mapa
-adb shell input tap 743 407; sleep 2; shot mapa-floresta
-tap "MONTAR EXPEDIÇÃO" 1830 929; sleep 2; shot expedicao
+tap "EXPEDIÇÃO" 324 189; sleep 3; shot regiao
+tap "MONTAR EXPEDIÇÃO" 1840 817; sleep 2; shot expedicao
 tap "Lia" 238 701; sleep 1; tap "Lobo 1" 998 701; sleep 1; shot equipe
 tap "PARTIR!" 1330 906; sleep 2; shot evento
 for k in 1 2 3 4; do adb shell input tap 638 762; sleep 1; done; shot fim
