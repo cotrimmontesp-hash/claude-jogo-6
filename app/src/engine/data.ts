@@ -1,96 +1,107 @@
-/* Dados fixos: cartas, vespas, fases, visuais da colmeia, calendário diário e missões. */
+/* Dados fixos do Cidade nas Costas: materiais, construções, criatura, regiões do mapa,
+   moradores, eventos das expedições e o calendário do prêmio diário. */
 
-export type CardId = 'operaria' | 'flor' | 'cera' | 'guarda' | 'ferrao' | 'grude' | 'bercario' | 'cardo' | 'bomba' | 'geleia';
-export interface Card { id: CardId; name: string; cost: number; spell?: boolean; hp: number; unlock: number; col: string; desc: string; up: string }
-export const CARDS: Card[] = [
-  { id: 'operaria', name: 'Operária', cost: 2, hp: 2, unlock: 1, col: '#f8c020', desc: 'Faz 1 de mel por turno, +1 para cada Flor vizinha.', up: 'Mais vida; no nível 4 faz +1 de mel.' },
-  { id: 'flor', name: 'Flor', cost: 1, hp: 1, unlock: 1, col: '#f06aa8', desc: 'Sozinha não faz nada: dá +1 de mel para cada Operária vizinha.', up: 'Mais vida; no nível 5 dá +2.' },
-  { id: 'cera', name: 'Cera', cost: 1, hp: 5, unlock: 1, col: '#f4e0a0', desc: 'Parede forte. As vespas preferem dar a volta.', up: '+1 de vida por nível.' },
-  { id: 'guarda', name: 'Guarda', cost: 3, hp: 4, unlock: 1, col: '#3c8cf0', desc: 'Pica 1 vespa encostada por turno (2 de dano).', up: 'Mais vida; dano +1 nos níveis 3 e 5.' },
-  { id: 'ferrao', name: 'Ferrão', cost: 4, hp: 3, unlock: 2, col: '#e05a2a', desc: 'Torre: atira na vespa mais perto, até 2 casas (1 de dano).', up: 'Mais vida; dano +1 no nível 4.' },
-  { id: 'grude', name: 'Mel Grudento', cost: 2, hp: 3, unlock: 3, col: '#f8a020', desc: 'Vespa que morder fica presa 1 turno sem andar.', up: 'Mais vida; prende 2 turnos no nível 4.' },
-  { id: 'bercario', name: 'Berçário', cost: 4, hp: 3, unlock: 4, col: '#c8a0f0', desc: 'A cada 2 turnos te dá uma Operária de graça na mão.', up: 'Mais vida; no nível 4 a Operária vem a cada turno.' },
-  { id: 'cardo', name: 'Cardo', cost: 3, hp: 4, unlock: 6, col: '#8c5cd8', desc: 'Planta com espinhos: quem morder leva 2 de dano.', up: 'Mais vida; espinho +1 no nível 4.' },
-  { id: 'bomba', name: 'Bomba de Pólen', cost: 3, spell: true, hp: 0, unlock: 5, col: '#ffe040', desc: 'Feitiço: 3 de dano em todas as vespas em volta da casa escolhida.', up: 'Dano +1 nos níveis 3 e 5.' },
-  { id: 'geleia', name: 'Geleia Real', cost: 2, spell: true, hp: 0, unlock: 7, col: '#fff0c0', desc: 'Feitiço: cura 3 das peças em volta (e da Rainha).', up: 'Cura +1 por nível.' },
-];
-export const CARD: { [k: string]: Card } = Object.fromEntries(CARDS.map(c => [c.id, c]));
-export const CARD_MAX = 5;
-export function upCost(id: string, lvl: number) { const i = CARDS.findIndex(c => c.id === id); return Math.round((40 + i * 6) * lvl * (1 + (lvl - 1) * .35) / 5) * 5; }
-/** quantas de cada carta entram no baralho da partida (só as liberadas) */
-export const DECK_COUNT: { [k: string]: number } = { operaria: 6, flor: 4, cera: 3, guarda: 3, ferrao: 2, grude: 2, bercario: 1, cardo: 2, bomba: 2, geleia: 1 };
-
-/* ---------- vespas ---------- */
-export type WaspId = 'vespa' | 'rapida' | 'bruto' | 'rainha';
-export interface Wasp { id: WaspId; name: string; hp: number; dmg: number; spd: number; col: string; size: number }
-export const WASPS: { [k: string]: Wasp } = {
-  vespa: { id: 'vespa', name: 'Vespa', hp: 3, dmg: 1, spd: 1, col: '#e8402c', size: 1 },
-  rapida: { id: 'rapida', name: 'Vespa Ligeira', hp: 2, dmg: 1, spd: 2, col: '#f89020', size: .85 },
-  bruto: { id: 'bruto', name: 'Marimbondo Bruto', hp: 8, dmg: 2, spd: 1, col: '#8048c8', size: 1.25 },
-  rainha: { id: 'rainha', name: 'Rainha Vespa', hp: 24, dmg: 3, spd: 1, col: '#c81838', size: 1.6 },
+/* ---------- materiais ---------- */
+export type Res = 'comida' | 'madeira' | 'pedra' | 'agua' | 'metal' | 'escamas' | 'cristal';
+export const RES: Res[] = ['comida', 'madeira', 'pedra', 'agua', 'metal', 'escamas', 'cristal'];
+export const RES_INFO: { [k: string]: { name: string; col: string } } = {
+  comida: { name: 'Comida', col: '#f0a030' }, madeira: { name: 'Madeira', col: '#a8703c' }, pedra: { name: 'Pedra', col: '#9ca0ac' },
+  agua: { name: 'Água', col: '#3ca8f0' }, metal: { name: 'Metal', col: '#6c7c94' }, escamas: { name: 'Escamas', col: '#30c0a8' }, cristal: { name: 'Cristal', col: '#c070f0' },
 };
+export type Bag = Partial<Record<Res, number>>;
+export const BASE_CAP = 80;
 
-/* ---------- fases ---------- */
-export interface Level { name: string; region: number; turns: number; base: number; grow: number; types: [WaspId, number][]; rocks: number; honey: number; boss?: boolean; seed: number }
-export const REGIONS = [
-  { name: 'Jardim', col: '#5cc048', bg: ['#9ce070', '#6cc050'] },
-  { name: 'Pântano', col: '#3ca890', bg: ['#7cc8a8', '#4c9c80'] },
-  { name: 'Montanha', col: '#9c8cc8', bg: ['#c8c0e0', '#8c84b0'] },
+/* ---------- construções (cada uma ocupa 1 espaço do casco) ---------- */
+export interface Building { id: string; name: string; cost: Bag; prod?: Bag; cap?: Bag; homes?: number; desc: string; from: number; adj?: { with: string; bonus: number; txt: string } }
+/** `from`: região onde a planta é descoberta (0 = já começa sabendo) */
+export const BUILDINGS: Building[] = [
+  { id: 'casa', name: 'Casa', cost: { madeira: 10 }, homes: 2, from: 0, desc: 'Abriga 2 moradores.' },
+  { id: 'roca', name: 'Roça', cost: { madeira: 8 }, prod: { comida: 40 }, from: 0, desc: 'Planta comida. Rende menos no deserto.', adj: { with: 'poco', bonus: .3, txt: '+30% ao lado de um Poço' } },
+  { id: 'serraria', name: 'Serraria', cost: { madeira: 6, pedra: 4 }, prod: { madeira: 30 }, from: 0, desc: 'Corta madeira. Rende muito na floresta.' },
+  { id: 'poco', name: 'Poço', cost: { pedra: 10 }, prod: { agua: 30 }, cap: { agua: 60 }, from: 0, desc: 'Junta água e guarda mais. Rende mais na costa.' },
+  { id: 'armazem', name: 'Armazém', cost: { madeira: 20, pedra: 10 }, cap: { comida: 80, madeira: 80, pedra: 80, agua: 40, metal: 40, escamas: 40, cristal: 40 }, from: 0, desc: 'Guarda mais de tudo.' },
+  { id: 'pedreira', name: 'Pedreira', cost: { madeira: 15 }, prod: { pedra: 25 }, from: 2, desc: 'Tira pedra. Rende muito nas colinas e montanhas.', adj: { with: 'oficina', bonus: .2, txt: '+20% ao lado da Oficina' } },
+  { id: 'oficina', name: 'Oficina', cost: { madeira: 25, pedra: 15 }, from: 2, desc: 'Necessária para a criatura aprender habilidades. Engenheiros constroem mais barato.' },
+  { id: 'torre', name: 'Torre de Vigia', cost: { madeira: 15, pedra: 20 }, from: 1, desc: 'Expedições mais seguras: +10% de chance em cada escolha.' },
+  { id: 'estufa', name: 'Estufa', cost: { pedra: 20, agua: 20 }, prod: { comida: 30 }, from: 3, desc: 'Comida em qualquer lugar, até no deserto.' },
+  { id: 'forja', name: 'Forja', cost: { pedra: 30, madeira: 20 }, prod: { metal: 12 }, from: 5, desc: 'Faz metal. Rende o dobro nas montanhas.', adj: { with: 'pedreira', bonus: .25, txt: '+25% ao lado da Pedreira' } },
+  { id: 'farol', name: 'Farol', cost: { madeira: 30, escamas: 10 }, from: 6, desc: 'As viagens ficam 30% mais curtas.' },
+  { id: 'jardim', name: 'Jardim de Cristal', cost: { pedra: 20, cristal: 10 }, prod: { cristal: 6 }, from: 7, desc: 'Cultiva cristais devagar.' },
 ];
-export const LEVELS: Level[] = [
-  { region: 0, name: 'Primeira Flor', turns: 8, base: .6, grow: .12, types: [['vespa', 1]], rocks: 2, honey: 6, seed: 1 },
-  { region: 0, name: 'Canteiro', turns: 9, base: .8, grow: .15, types: [['vespa', 1]], rocks: 3, honey: 6, seed: 2 },
-  { region: 0, name: 'Vento Ligeiro', turns: 10, base: .9, grow: .17, types: [['vespa', 3], ['rapida', 1]], rocks: 3, honey: 6, seed: 3 },
-  { region: 0, name: 'Muro de Pedra', turns: 10, base: 1, grow: .2, types: [['vespa', 3], ['rapida', 1]], rocks: 7, honey: 6, seed: 4 },
-  { region: 0, name: 'Rainha do Jardim', turns: 11, base: 1, grow: .2, types: [['vespa', 3], ['rapida', 1]], rocks: 3, honey: 7, boss: true, seed: 5 },
-  { region: 1, name: 'Brejo', turns: 11, base: 1.1, grow: .22, types: [['vespa', 3], ['rapida', 2]], rocks: 4, honey: 7, seed: 6 },
-  { region: 1, name: 'Marimbondos', turns: 11, base: 1.1, grow: .22, types: [['vespa', 3], ['bruto', 1]], rocks: 4, honey: 7, seed: 7 },
-  { region: 1, name: 'Lama Funda', turns: 12, base: 1.2, grow: .24, types: [['vespa', 3], ['rapida', 2], ['bruto', 1]], rocks: 6, honey: 7, seed: 8 },
-  { region: 1, name: 'Correria', turns: 12, base: 1.1, grow: 0.21, types: [['vespa', 1], ['rapida', 3]], rocks: 4, honey: 7, seed: 9 },
-  { region: 1, name: 'Rainha do Pântano', turns: 13, base: 1.1, grow: 0.21, types: [['vespa', 3], ['rapida', 2], ['bruto', 1]], rocks: 5, honey: 8, boss: true, seed: 10 },
-  { region: 2, name: 'Pé da Serra', turns: 13, base: 1.2, grow: 0.23, types: [['vespa', 3], ['rapida', 2], ['bruto', 2]], rocks: 6, honey: 8, seed: 11 },
-  { region: 2, name: 'Desfiladeiro', turns: 13, base: 1.2, grow: 0.25, types: [['vespa', 2], ['rapida', 2], ['bruto', 2]], rocks: 10, honey: 8, seed: 12 },
-  { region: 2, name: 'Ventania', turns: 14, base: 1.3, grow: 0.25, types: [['vespa', 2], ['rapida', 3], ['bruto', 2]], rocks: 6, honey: 8, seed: 13 },
-  { region: 2, name: 'Pico Gelado', turns: 14, base: 1.4, grow: 0.26, types: [['vespa', 2], ['rapida', 2], ['bruto', 3]], rocks: 7, honey: 9, seed: 14 },
-  { region: 2, name: 'Rainha da Montanha', turns: 15, base: 1.4, grow: 0.26, types: [['vespa', 2], ['rapida', 2], ['bruto', 3]], rocks: 6, honey: 9, boss: true, seed: 15 },
-];
+export const BUILD: { [k: string]: Building } = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
 
-/* ---------- visuais da colmeia (comprados com geleia) ---------- */
-export interface Skin { id: string; name: string; price: number; hex: [string, string]; line: string; bg: [string, string]; queen: string }
-export const SKINS: Skin[] = [
-  { id: 'classica', name: 'Clássica', price: 0, hex: ['#fce6a8', '#f6d88c'], line: '#c89a3c', bg: ['', ''], queen: '#f8c020' },
-  { id: 'noite', name: 'Noite Estrelada', price: 10, hex: ['#5c5ca8', '#4c4c98'], line: '#2c2c6c', bg: ['#2c2c64', '#14143c'], queen: '#f8e080' },
-  { id: 'gelo', name: 'Gelo', price: 15, hex: ['#dcf2fc', '#c4e6f8'], line: '#7cb4d8', bg: ['#a8dcf4', '#6cb0dc'], queen: '#a8e8ff' },
-  { id: 'doce', name: 'Algodão-Doce', price: 25, hex: ['#fcd8ec', '#f8c4e0'], line: '#d878a8', bg: ['#fcc8e0', '#d8a0f0'], queen: '#ff80c0' },
-  { id: 'ouro', name: 'Ouro Real', price: 40, hex: ['#fce070', '#f8cc40'], line: '#b8861c', bg: ['#5c3c10', '#3c2408'], queen: '#fff4b0' },
+/* ---------- criatura ---------- */
+export const GRID = [[4, 2], [5, 2], [5, 3], [6, 3], [7, 3], [7, 4]]; /* tamanho do casco por nível */
+export const CREATURE_XP = [40, 100, 200, 360, 600];
+export const FEED = 20; /* comida por porção */
+export interface Ability { id: string; name: string; desc: string; cost: Bag; lvl: number }
+export const ABILITIES: Ability[] = [
+  { id: 'patas', name: 'Patas Fortes', desc: 'Garras para subir montanhas.', cost: { metal: 15, pedra: 40 }, lvl: 2 },
+  { id: 'nadadeiras', name: 'Nadadeiras', desc: 'Nada pelo mar até as ilhas.', cost: { escamas: 20, madeira: 40 }, lvl: 2 },
+  { id: 'carapaca', name: 'Carapaça', desc: 'Placas duras que aguentam tempestades.', cost: { cristal: 15, pedra: 60 }, lvl: 3 },
 ];
 
-/* ---------- prêmio por entrar todo dia ---------- */
+/* ---------- regiões ---------- */
+export interface Region {
+  id: number; name: string; x: number; y: number; bg: string; bg2: string; mod: Bag; loot: Bag; need?: string[]; size?: number;
+  desc: string; danger: number; people: string[]; gift?: Bag;
+}
+export const REGIONS: Region[] = [
+  { id: 0, name: 'Campina Verde', x: .1, y: .55, bg: '#8cd468', bg2: '#74c058', mod: { comida: 1.2 }, loot: { comida: 30, madeira: 25 }, desc: 'Onde tudo começou. Calma e cheia de capim.', danger: 0, people: ['explorador'] },
+  { id: 1, name: 'Floresta Antiga', x: .3, y: .3, bg: '#3c9c4c', bg2: '#2c8040', mod: { comida: 1.5, madeira: 2 }, loot: { madeira: 50, comida: 40 }, desc: 'Muita comida e madeira, mas cheia de feras.', danger: .2, people: ['cuidador', 'explorador'], gift: { madeira: 30 } },
+  { id: 2, name: 'Colinas de Pedra', x: .3, y: .75, bg: '#c8b484', bg2: '#b4a070', mod: { pedra: 2, comida: .8 }, loot: { pedra: 50 }, desc: 'Pedra para todo lado. Aqui se aprende a fazer Oficinas.', danger: .05, people: ['engenheiro'], gift: { pedra: 30 } },
+  { id: 3, name: 'Deserto Dourado', x: .52, y: .86, bg: '#f4d488', bg2: '#e8c070', mod: { comida: .2, agua: .3 }, loot: { cristal: 8, pedra: 20 }, desc: 'Quase nada cresce. Leve água! Esconde a Estufa.', danger: .1, people: ['engenheiro'], gift: { cristal: 6 } },
+  { id: 4, name: 'Costa das Conchas', x: .52, y: .38, bg: '#f0e0a8', bg2: '#5cc0e8', mod: { agua: 1.6 }, loot: { escamas: 14, agua: 30 }, desc: 'Praia de conchas. Escamas para aprender a nadar.', danger: .05, people: ['cuidador'], gift: { escamas: 8 } },
+  { id: 5, name: 'Montanhas Altas', x: .7, y: .66, bg: '#a8a8b8', bg2: '#8c8c9c', mod: { pedra: 2, metal: 2, comida: .6 }, loot: { metal: 16, pedra: 40 }, need: ['patas'], desc: 'Só com Patas Fortes. Minério para a Forja.', danger: .15, people: ['engenheiro', 'explorador'], gift: { metal: 10 } },
+  { id: 6, name: 'Ilha Perdida', x: .72, y: .16, bg: '#bce8a8', bg2: '#40b8d8', mod: { comida: 1.3, agua: 1.3 }, loot: { escamas: 20, cristal: 8 }, need: ['nadadeiras'], desc: 'Só nadando. Gente que nunca viu uma criatura gigante.', danger: .1, people: ['cuidador', 'engenheiro', 'explorador'], gift: { escamas: 15, cristal: 5 } },
+  { id: 7, name: 'Planície das Tempestades', x: .72, y: .9, bg: '#8c84a8', bg2: '#6c6488', mod: { agua: 1.4, comida: .7 }, loot: { cristal: 22 }, need: ['carapaca'], desc: 'Raios o tempo todo. Só com Carapaça. Muito cristal.', danger: .25, people: ['explorador'], gift: { cristal: 15 } },
+  { id: 8, name: 'Pântano da Névoa', x: .5, y: .1, bg: '#7c9c6c', bg2: '#5c7c58', mod: { comida: 1.3, agua: 1.2 }, loot: { metal: 10, cristal: 10, comida: 30 }, size: 4, desc: 'Lama funda: só uma criatura de tamanho 4 atravessa.', danger: .2, people: ['cuidador', 'engenheiro'], gift: { metal: 10, cristal: 8 } },
+  { id: 9, name: 'Terra dos Gigantes', x: .92, y: .45, bg: '#f8d860', bg2: '#e8b840', mod: { comida: 1.5, madeira: 1.5, pedra: 1.5, metal: 1.5, cristal: 1.5 }, loot: { cristal: 30, metal: 30, escamas: 20 }, need: ['patas', 'nadadeiras', 'carapaca'], size: 5, desc: 'Lar de outras criaturas gigantes. O fim da primeira jornada.', danger: .2, people: ['explorador', 'engenheiro', 'cuidador'], gift: { cristal: 30, metal: 30 } },
+];
+/** rotas: [de, para, segundos de viagem, gasto extra de comida, gasto extra de água] */
+export const ROUTES: [number, number, number, number, number][] = [
+  [0, 1, 50, 10, 5], [0, 2, 50, 10, 10], [1, 4, 60, 10, 5], [2, 3, 75, 10, 40], [1, 8, 80, 20, 10], [4, 6, 70, 15, 0], [4, 8, 70, 15, 5],
+  [2, 5, 80, 20, 15], [3, 5, 70, 15, 30], [3, 7, 80, 20, 20], [5, 9, 100, 30, 20], [6, 9, 100, 30, 10], [7, 9, 100, 30, 20], [8, 6, 70, 15, 5],
+];
+
+/* ---------- moradores ---------- */
+export const ROLES: { [k: string]: { name: string; col: string; desc: string } } = {
+  explorador: { name: 'Explorador', col: '#f08030', desc: 'Traz mais coisas das expedições.' },
+  engenheiro: { name: 'Engenheiro', col: '#3c8cf0', desc: 'Resolve obstáculos e deixa as construções mais baratas.' },
+  cuidador: { name: 'Cuidador', col: '#e860a8', desc: 'Cuida dos feridos e faz a criatura crescer mais rápido.' },
+};
+export const NAMES = ['Lia', 'Tito', 'Bia', 'Ravi', 'Nina', 'Davi', 'Mel', 'Caio', 'Lua', 'Rui', 'Zoe', 'Teo', 'Iara', 'Gael', 'Maya', 'Joca', 'Duda', 'Leo', 'Clara', 'Noah'];
+export const VXP = [30, 70, 130, 220];
+export const REST_S = 90; /* descanso depois de uma expedição (segundos) */
+
+/* ---------- expedições ---------- */
+export const EXPED = [
+  { id: 'coletar', name: 'Coletar', desc: 'Junta os materiais da região.', icon: 'cesta' },
+  { id: 'explorar', name: 'Explorar', desc: 'Procura ruínas e plantas de construção. Mais arriscado.', icon: 'luneta' },
+  { id: 'resgatar', name: 'Resgatar', desc: 'Procura pessoas que queiram morar na cidade.', icon: 'corda' },
+];
+export interface ExEvent { txt: string; a: { txt: string; role?: string; base: number }; b: { txt: string; role?: string; base: number }; tag?: string }
+export const EVENTS: ExEvent[] = [
+  { txt: 'Um rio forte corta o caminho.', a: { txt: 'Montar uma ponte', role: 'engenheiro', base: .45 }, b: { txt: 'Procurar um trecho raso', role: 'explorador', base: .55 } },
+  { txt: 'Pegadas enormes de fera na lama.', tag: 'fera', a: { txt: 'Seguir com cuidado', role: 'explorador', base: .5 }, b: { txt: 'Dar a volta (mais seguro)', base: .75 } },
+  { txt: 'Alguém do grupo torceu o pé.', a: { txt: 'Fazer um curativo', role: 'cuidador', base: .5 }, b: { txt: 'Carregar e seguir', base: .55 } },
+  { txt: 'Uma porta de pedra antiga, trancada.', a: { txt: 'Destravar o mecanismo', role: 'engenheiro', base: .4 }, b: { txt: 'Procurar outra entrada', role: 'explorador', base: .45 } },
+  { txt: 'Um bando de bichos famintos cerca o grupo.', tag: 'fera', a: { txt: 'Distrair com comida', role: 'cuidador', base: .55 }, b: { txt: 'Correr para as pedras', role: 'explorador', base: .5 } },
+  { txt: 'Uma ventania levanta poeira.', a: { txt: 'Esperar abrigados', base: .7 }, b: { txt: 'Seguir pelo atalho', role: 'explorador', base: .45 } },
+  { txt: 'Um carrinho velho cheio de coisas.', a: { txt: 'Consertar e levar tudo', role: 'engenheiro', base: .5 }, b: { txt: 'Pegar só o que cabe', base: .8 } },
+  { txt: 'Frutas estranhas numa árvore alta.', a: { txt: 'Provar com cuidado', role: 'cuidador', base: .5 }, b: { txt: 'Subir e colher muitas', role: 'explorador', base: .5 } },
+  { txt: 'Ouvem um pedido de ajuda vindo de uma caverna.', a: { txt: 'Entrar com tochas', role: 'explorador', base: .5 }, b: { txt: 'Escorar a entrada antes', role: 'engenheiro', base: .55 } },
+  { txt: 'O mapa molhou e ficou ilegível.', a: { txt: 'Seguir as estrelas', role: 'explorador', base: .55 }, b: { txt: 'Voltar pelo mesmo caminho', base: .7 } },
+];
+
+/* ---------- prêmio diário ---------- */
 export const DAILY = [
-  { coins: 50, gems: 0, txt: '50 moedas' },
-  { coins: 80, gems: 0, txt: '80 moedas' },
-  { coins: 0, gems: 3, txt: '3 geleias' },
-  { coins: 120, gems: 0, txt: '120 moedas' },
-  { coins: 150, gems: 2, txt: '150 moedas + 2 geleias' },
-  { coins: 200, gems: 0, txt: '200 moedas' },
-  { coins: 300, gems: 10, txt: 'BAÚ: 300 moedas + 10 geleias' },
+  { txt: '30 de comida e madeira', bag: { comida: 30, madeira: 30 } },
+  { txt: '40 de pedra e água', bag: { pedra: 40, agua: 40 } },
+  { txt: 'Porção extra: +40 de crescimento', xp: 40 },
+  { txt: '20 de metal', bag: { metal: 20 } },
+  { txt: '15 escamas', bag: { escamas: 15 } },
+  { txt: '15 cristais', bag: { cristal: 15 } },
+  { txt: 'BAÚ: um morador novo + materiais', bag: { comida: 60, madeira: 60, pedra: 60, metal: 20 }, villager: true },
 ];
-
-/* ---------- missões do dia ---------- */
-export interface Mission { k: string; n: number; txt: string; coins: number }
-export const MISSIONS: Mission[] = [
-  { k: 'win', n: 1, txt: 'Vença 1 fase', coins: 40 },
-  { k: 'win', n: 2, txt: 'Vença 2 fases', coins: 70 },
-  { k: 'kills', n: 25, txt: 'Derrote 25 vespas', coins: 50 },
-  { k: 'kills', n: 50, txt: 'Derrote 50 vespas', coins: 80 },
-  { k: 'operaria', n: 12, txt: 'Coloque 12 Operárias', coins: 40 },
-  { k: 'guarda', n: 6, txt: 'Coloque 6 Guardas', coins: 45 },
-  { k: 'flor', n: 10, txt: 'Coloque 10 Flores', coins: 40 },
-  { k: 'stars3', n: 1, txt: 'Ganhe 3 estrelas numa fase', coins: 60 },
-  { k: 'play', n: 3, txt: 'Jogue 3 partidas', coins: 40 },
-  { k: 'honey', n: 80, txt: 'Junte 80 de mel no total', coins: 45 },
-  { k: 'wave', n: 8, txt: 'Chegue na onda 8 do Enxame sem fim', coins: 70 },
-];
-export const MISSION_BONUS_GEMS = 3;
-
-export function xpNeed(lvl: number) { return 80 + lvl * 40; }
+export const OFFLINE_MAX_H = 12;

@@ -1,600 +1,498 @@
-/* Motor da Colmeia de Guerra: estratégia por turnos num tabuleiro de hexágonos.
-   Você monta a colmeia com cartas (custam mel) para proteger a Rainha das vespas.
-   Também cuida das recompensas: moedas, experiência, nível, cartas novas, melhorias,
-   visuais, prêmio diário (7 dias) e missões do dia. As telas em React Native leem `ui`/`info`. */
-import { CARDS, CARD, CARD_MAX, upCost, DECK_COUNT, WASPS, LEVELS, REGIONS, SKINS, DAILY, MISSIONS, MISSION_BONUS_GEMS, xpNeed, type Level } from './data';
-import { hexPath, piece, wasp as drawWasp, text, setCanvasMaker, iconImage, sh, INK } from './draw';
+/* Motor do Cidade nas Costas: uma cidade nas costas de uma criatura gigante que viaja
+   por um mundo desconhecido. Produção em tempo real (continua enquanto você está fora,
+   com limite e sem perder nada), viagens pelo mapa, expedições com escolhas, a criatura
+   que cresce e aprende habilidades, e os moradores que ganham experiência.
+   As telas em React Native leem `ui`/`info` e chamam `act`. */
+import {
+  RES, RES_INFO, BASE_CAP, BUILDINGS, BUILD, GRID, CREATURE_XP, FEED, ABILITIES, REGIONS, ROUTES, ROLES, NAMES, VXP, REST_S,
+  EXPED, EVENTS, DAILY, OFFLINE_MAX_H, type Bag, type Res,
+} from './data';
+import { ground, creature, building, text, setCanvasMaker, iconImage, INK } from './draw';
 import type { Platform, Ctx2D, Insets, PtrEv } from './types';
 
 export type Game = ReturnType<typeof createGame>;
-
-/* largura dos painéis das telas (React Native) dos dois lados do tabuleiro */
-export const LEFT_W = 150, RIGHT_W = 232;
-const N = 4; /* raio do tabuleiro */
-const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-const key = (q: number, r: number) => q + ',' + r;
-const hdist = (q: number, r: number, q2 = 0, r2 = 0) => (Math.abs(q - q2) + Math.abs(r - r2) + Math.abs(q + r - q2 - r2)) / 2;
-function rng(seed: number) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* espaço das telas em volta da criatura (React Native) */
+export const TOP_H = 50, LEFT_W = 118, BOTTOM_H = 58;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const now = () => Date.now();
 
-interface Cell { q: number; r: number; t: string | null; hp: number; max: number; timer: number; hit: number; born: number }
-interface WaspE { uid: number; id: string; q: number; r: number; hp: number; max: number; stuck: number; x: number; y: number; hurt: number; lx: number; ly: number; born: number; sum: number }
-interface HandCard { id: string; free?: boolean; uid: number }
+interface Cell { b: string | null; stock: Bag }
+interface Villager { id: number; name: string; role: string; lvl: number; xp: number; rest: number; seed: number }
 
 export function createGame(pf: Platform) {
   setCanvasMaker(pf.createCanvas);
-  const isTouch = pf.isTouch;
   let W = 800, H = 400, DPR = 1, INS: Insets = { t: 0, r: 0, b: 0, l: 0 };
   function setLayout(w: number, h: number, dpr: number, ins: Insets) { W = w; H = h; DPR = dpr; INS = ins || INS; emit(); }
 
-  /* ---------- estado das telas ---------- */
-  const ui: any = { v: 0, show: { menu: true, map: false, deck: false, shop: false, missions: false, daily: false, play: false, pause: false, res: false }, toast: null as any };
+  /* ---------- telas ---------- */
+  const ui: any = { v: 0, show: { city: true, build: false, creature: false, people: false, exped: false, map: false, daily: false, away: false }, toast: null as any };
   const subs = new Set<() => void>();
   let emitQ = false;
   function emit() { if (emitQ) return; emitQ = true; Promise.resolve().then(() => { emitQ = false; ui.v++; subs.forEach(f => { try { f(); } catch (e) { } }); }); }
-  function only(k: string | null) { const d = ui.show.daily; for (const s in ui.show) ui.show[s] = false; if (k) ui.show[k] = true; if (k === 'menu' && d) ui.show.daily = true; emit(); }
+  function only(k: string) { for (const s in ui.show) if (s !== 'daily' && s !== 'away') ui.show[s] = false; ui.show[k] = true; emit(); }
+  function close(k: string) { ui.show[k] = false; if (!['build', 'creature', 'people', 'exped', 'map'].some(s => ui.show[s])) ui.show.city = true; emit(); }
   let toastT: any = null, toastN = 0;
-  function toast(s: string) { ui.toast = { s, id: ++toastN }; emit(); clearTimeout(toastT); toastT = setTimeout(() => { ui.toast = null; emit(); }, 2800); }
+  function toast(s: string) { ui.toast = { s, id: ++toastN }; emit(); clearTimeout(toastT); toastT = setTimeout(() => { ui.toast = null; emit(); }, 3000); }
   const sfx = (n: string, v = 1) => pf.audio.play(n, v);
 
   /* ---------- progresso salvo ---------- */
-  let save: any = { coins: 0, gems: 0, xp: 0, plvl: 1, cards: {}, stars: [], unl: 1, bestWave: 0, skin: 'classica', skins: ['classica'], sfx: true, mus: true, daily: { last: '', streak: 0 }, miss: { day: '', list: [], bonus: false }, games: 0, tut: 0 };
-  try { const s = JSON.parse(pf.storage.load() || 'null'); if (s && typeof s === 'object') save = Object.assign(save, s); } catch (e) { }
-  for (const c of CARDS) if (!save.cards[c.id]) save.cards[c.id] = 1;
-  function persist() { try { pf.storage.save(JSON.stringify(save)); } catch (e) { } }
+  const fresh = () => ({
+    res: { comida: 50, madeira: 45, pedra: 25, agua: 35, metal: 0, escamas: 0, cristal: 0 } as Bag,
+    cr: { lvl: 1, xp: 0, ab: {} as { [k: string]: boolean } },
+    cols: 4, rows: 2, grid: [] as Cell[],
+    vil: [] as Villager[], wait: [] as string[], nextId: 1,
+    region: 0, visited: [0], travel: null as null | { from: number; to: number; start: number; dur: number },
+    t: now(), daily: { last: '', streak: 0 }, sfx: true, mus: true, created: now(), exps: 0, done: false,
+  });
+  let save: any = fresh();
+  try { const s = JSON.parse(pf.storage.load() || 'null'); if (s && typeof s === 'object' && s.grid) save = Object.assign(fresh(), s); } catch (e) { }
+  if (!save.grid.length) {
+    save.grid = Array.from({ length: save.cols * save.rows }, () => ({ b: null, stock: {} }));
+    save.grid[1].b = 'casa'; save.grid[2].b = 'roca'; save.grid[6].b = 'poco';
+    addVillager('explorador', 'Lia'); addVillager('engenheiro', 'Tito'); addVillager('cuidador', 'Bia');
+  }
+  function persist() { save.t = now(); try { pf.storage.save(JSON.stringify(save)); } catch (e) { } }
   pf.audio.setVolumes(save.sfx, save.mus);
 
-  /* ---------- dia de hoje (prêmio diário e missões) ---------- */
+  function addVillager(role: string, name?: string) {
+    const used = new Set(save.vil.map((v: Villager) => v.name));
+    const nm = name || NAMES.find(n => !used.has(n)) || ('Morador ' + save.nextId);
+    const v: Villager = { id: save.nextId++, name: nm, role, lvl: 1, xp: 0, rest: 0, seed: Math.floor(Math.random() * 1000) };
+    save.vil.push(v); return v;
+  }
+  const homes = () => 3 + save.grid.filter((c: Cell) => c.b === 'casa').length * 2;
+  function recruit(role: string) {
+    if (save.vil.length < homes()) { const v = addVillager(role); toast(v.name + ' (' + ROLES[role].name + ') veio morar na cidade!'); sfx('join'); return true; }
+    save.wait.push(role); toast('Um ' + ROLES[role].name.toLowerCase() + ' quer morar aqui, mas falta casa! Construa uma Casa.'); return false;
+  }
+  function fillHomes() { while (save.wait.length && save.vil.length < homes()) { const r = save.wait.shift(); const v = addVillager(r); toast(v.name + ' se mudou para a casa nova!'); } }
+
+  /* ---------- números da cidade ---------- */
+  const has = (b: string) => save.grid.some((c: Cell) => c.b === b);
+  const count = (role: string) => save.vil.filter((v: Villager) => v.role === role).length;
+  const region = () => REGIONS[save.region];
+  function cap(r: Res) { let c = BASE_CAP; for (const cell of save.grid) { const B = cell.b && BUILD[cell.b]; if (B && B.cap && B.cap[r]) c += B.cap[r]!; } return c; }
+  const neighbors = (i: number) => { const x = i % save.cols, y = Math.floor(i / save.cols), out: number[] = []; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < save.cols && ny < save.rows) out.push(ny * save.cols + nx); } return out; };
+  /** produção por hora de uma construção, já com região, vizinhos e fome */
+  function rateOf(i: number): Bag {
+    const cell = save.grid[i], B = cell && cell.b ? BUILD[cell.b] : null; if (!B || !B.prod) return {};
+    const out: Bag = {}, R = save.travel ? null : region();
+    let k = 1;
+    if (B.adj && neighbors(i).some(n => save.grid[n].b === B.adj!.with)) k += B.adj.bonus;
+    if (hungry()) k *= .5;
+    for (const r in B.prod) { const m = B.id === 'estufa' ? 1 : (R ? (R.mod[r as Res] ?? 1) : .6); out[r as Res] = B.prod[r as Res]! * m * k; }
+    return out;
+  }
+  const hungry = () => (save.res.comida || 0) <= 0 || (save.res.agua || 0) <= 0;
+  const eatRate = () => save.vil.length * 2, drinkRate = () => save.vil.length * 1.5;
+  function totalRates() { const t: Bag = {}; for (let i = 0; i < save.grid.length; i++) { const r = rateOf(i); for (const k in r) t[k as Res] = (t[k as Res] || 0) + r[k as Res]!; } return t; }
+
+  /* ---------- tempo passando (também o tempo fora do jogo) ---------- */
+  function simulate(sec: number) {
+    if (sec <= 0) return;
+    const h = sec / 3600;
+    for (let i = 0; i < save.grid.length; i++) {
+      const r = rateOf(i), cell = save.grid[i];
+      for (const k in r) { const lim = r[k as Res]! * 8; cell.stock[k as Res] = Math.min(lim, (cell.stock[k as Res] || 0) + r[k as Res]! * h); }
+    }
+    save.res.comida = Math.max(0, (save.res.comida || 0) - eatRate() * h);
+    save.res.agua = Math.max(0, (save.res.agua || 0) - drinkRate() * h);
+  }
+  function readyCount() { let n = 0; for (const c of save.grid) for (const k in c.stock) if (c.stock[k as Res]! >= 1) { n++; break; } return n; }
+  function collectAll(silent = false) {
+    let got: Bag = {}, full = false;
+    for (let i = 0; i < save.grid.length; i++) {
+      const c = save.grid[i];
+      for (const k in c.stock) {
+        const r = k as Res, amt = Math.floor(c.stock[r]!); if (amt < 1) continue;
+        const room = Math.max(0, cap(r) - (save.res[r] || 0)), take = Math.min(room, amt);
+        if (take < amt) full = true;
+        if (take > 0) { save.res[r] = (save.res[r] || 0) + take; c.stock[r] = c.stock[r]! - take; got[r] = (got[r] || 0) + take; floatAt(i, '+' + take, RES_INFO[r].col); }
+      }
+    }
+    const any = Object.keys(got).length > 0;
+    if (!silent) { if (any) sfx('collect'); else sfx('nope'); if (full) toast('Os depósitos estão cheios! Construa um Armazém (ou um Poço para água).'); else if (!any) toast('Nada pronto ainda.'); }
+    persist(); emit(); return got;
+  }
+
+  /* ---------- dia de hoje (prêmio diário) ---------- */
   const dstr = (d: Date) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const today = () => dstr(new Date());
   const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dstr(d); };
-  function dailyState() {
-    const last = save.daily.last, can = last !== today();
-    const cont = last === yesterday();
-    const streak = can ? (cont ? save.daily.streak | 0 : 0) : (save.daily.streak | 0) - 1;
-    const day = ((streak % 7) + 7) % 7; /* 0..6: o dia que vale hoje */
-    return { can, day, streak: can ? streak : save.daily.streak | 0 };
-  }
-  function rollMissions() {
-    if (save.miss.day === today()) return;
-    let h = 0; for (const ch of today()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    const R = rng(h), pool = MISSIONS.map((m, i) => i), list: any[] = [], used = new Set<string>();
-    while (list.length < 3 && pool.length) { const j = Math.floor(R() * pool.length); const i = pool.splice(j, 1)[0]; if (used.has(MISSIONS[i].k)) continue; used.add(MISSIONS[i].k); list.push({ i, prog: 0, claimed: false }); }
-    save.miss = { day: today(), list, bonus: false }; persist();
-  }
-  rollMissions();
-  function mission(k: string, n: number, max = false) {
-    rollMissions();
-    let changed = false;
-    for (const m of save.miss.list) { const M = MISSIONS[m.i]; if (M.k !== k || m.claimed) continue; const before = m.prog; m.prog = max ? Math.max(m.prog, n) : m.prog + n; if (before < M.n && m.prog >= M.n) { toast('Missão completa: ' + M.txt + '! Pegue o prêmio em Missões.'); changed = true; } }
-    if (changed) persist();
-  }
-  if (dailyState().can) ui.show.daily = true;
+  function dailyState() { const can = save.daily.last !== today(); const streak = can ? (save.daily.last === yesterday() ? save.daily.streak | 0 : 0) : (save.daily.streak | 0) - 1; return { can, day: ((streak % 7) + 7) % 7, streak }; }
 
-  /* ---------- experiência e nível ---------- */
-  function addXP(n: number) {
-    save.xp += n;
-    while (save.xp >= xpNeed(save.plvl)) {
-      save.xp -= xpNeed(save.plvl); save.plvl++; save.coins += 50;
-      const nc = CARDS.find(c => c.unlock === save.plvl);
-      setTimeout(() => { sfx('level'); toast('Nível ' + save.plvl + '! +50 moedas' + (nc ? '. Carta nova: ' + nc.name + '!' : '')); }, 1600);
+  /* ---------- chegada ao abrir o jogo ---------- */
+  let away: any = null;
+  {
+    const sec = clamp((now() - (save.t || now())) / 1000, 0, OFFLINE_MAX_H * 3600);
+    const before = JSON.stringify(save.grid.map((c: Cell) => c.stock));
+    if (sec > 5) simulate(sec);
+    if (sec > 120) {
+      const got: Bag = {}; const prev = JSON.parse(before);
+      save.grid.forEach((c: Cell, i: number) => { for (const k in c.stock) { const d = Math.floor((c.stock[k as Res] || 0) - ((prev[i] || {})[k] || 0)); if (d > 0) got[k as Res] = (got[k as Res] || 0) + d; } });
+      away = { mins: Math.round(sec / 60), capped: sec >= OFFLINE_MAX_H * 3600 - 1, got };
+      ui.show.away = true;
     }
-    persist();
+    if (dailyState().can) ui.show.daily = !ui.show.away;
   }
-  const unlocked = (id: string) => CARD[id].unlock <= save.plvl;
 
-  /* ---------- partida ---------- */
-  type Mode = 'camp' | 'endless' | 'demo';
-  let mode: Mode = 'demo', lvlIdx = 0, L: Level = LEVELS[0];
-  let cells = new Map<string, Cell>(), wasps: WaspE[] = [], hand: HandCard[] = [], drawPile: string[] = [], discard: string[] = [];
-  let honey = 0, turn = 1, maxTurns = 10, queenHp = 12, queenMax = 12, sel = -1, phase: 'player' | 'resolve' | 'over' = 'player';
-  let plan: { q: number; r: number; id: string }[] = [], kills = 0, honeyTotal = 0, uid = 1, clock = 0, result: any = null, overT = 0, won = false;
-  let floats: { x: number; y: number; s: string; c: string; t: number; k: number }[] = [], shots: { x0: number; y0: number; x1: number; y1: number; t: number; c: string }[] = [], parts: { x: number; y: number; vx: number; vy: number; t: number; c: string; r: number }[] = [];
-  let queue: { t: number; f: () => void }[] = [], qT = 0, bannerT = 0, banner = '', recycled = new Set<number>(), hint = '';
-  let R: () => number = Math.random;
-  const skin = () => SKINS.find(s => s.id === save.skin) || SKINS[0];
-  const cardLvl = (id: string) => save.cards[id] | 0 || 1;
-  const maxHp = (id: string) => (CARD[id] ? CARD[id].hp : 99) + (cardLvl(id) - 1);
-
-  function newBoard(seed: number, rocks: number) {
-    cells = new Map(); R = rng(seed * 7919 + 13);
-    for (let q = -N; q <= N; q++) for (let r = -N; r <= N; r++) if (hdist(q, r) <= N) cells.set(key(q, r), { q, r, t: null, hp: 0, max: 0, timer: 0, hit: 0, born: -9 });
-    const c0 = cells.get(key(0, 0))!; c0.t = 'rainha';
-    /* pedras, sem fechar todos os caminhos */
-    const list = [...cells.values()].filter(c => { const d = hdist(c.q, c.r); return d >= 2 && d <= 3; });
-    for (let i = 0; i < rocks && list.length; i++) { const c = list.splice(Math.floor(R() * list.length), 1)[0]; c.t = 'pedra'; if (!pathOk()) c.t = null; }
+  /* ---------- criatura ---------- */
+  function feed() {
+    if (save.cr.lvl >= GRID.length) { toast('A criatura já está do tamanho máximo!'); return; }
+    if ((save.res.comida || 0) < FEED) { sfx('nope'); toast('Precisa de ' + FEED + ' de comida para uma porção.'); return; }
+    save.res.comida -= FEED;
+    const gain = Math.round(10 * (1 + count('cuidador') * .15 + save.vil.filter((v: Villager) => v.role === 'cuidador').reduce((a: number, v: Villager) => a + (v.lvl - 1) * .05, 0)));
+    growXP(gain); sfx('eat'); bump = 1;
+    persist(); emit();
   }
-  function pathOk() {
-    const f = field(); for (const c of cells.values()) if (hdist(c.q, c.r) === N && c.t !== 'pedra' && f.get(key(c.q, c.r)) === Infinity) return false; return true;
-  }
-  function buildDeck() {
-    const d: string[] = [];
-    for (const c of CARDS) if (unlocked(c.id)) for (let i = 0; i < (DECK_COUNT[c.id] || 1); i++) d.push(c.id);
-    return shuffle(d);
-  }
-  function shuffle<T>(a: T[]) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-  function drawCards() {
-    while (hand.length < 4) {
-      if (!drawPile.length) { drawPile = shuffle(discard); discard = []; if (!drawPile.length) break; }
-      hand.push({ id: drawPile.pop()!, uid: uid++ });
+  function growXP(n: number) {
+    save.cr.xp += n;
+    while (save.cr.lvl < GRID.length && save.cr.xp >= CREATURE_XP[save.cr.lvl - 1]) {
+      save.cr.xp -= CREATURE_XP[save.cr.lvl - 1]; save.cr.lvl++; resizeGrid();
+      sfx('grow'); banner('A CRIATURA CRESCEU!'); toast('Nível ' + save.cr.lvl + '! O casco agora tem ' + save.cols * save.rows + ' espaços.');
     }
   }
-  function startGame(m: Mode, idx: number) {
-    mode = m; lvlIdx = idx; L = LEVELS[clamp(idx, 0, LEVELS.length - 1)];
-    if (m === 'endless') { newBoard(Math.floor(Math.random() * 1e6), 4); maxTurns = 1e9; honey = 7; }
-    else if (m === 'demo') { newBoard(77, 3); maxTurns = 1e9; honey = 0; }
-    else { newBoard(L.seed, L.rocks); maxTurns = L.turns; honey = L.honey; }
-    queenMax = queenHp = 12 + (save.plvl > 5 ? 2 : 0);
-    wasps = []; hand = []; discard = []; drawPile = buildDeck(); sel = -1; turn = 1; kills = 0; honeyTotal = 0; floats = []; shots = []; parts = []; queue = []; qT = 0; overT = 0; won = false; recycled = new Set(); result = null;
-    phase = 'player';
-    if (m !== 'demo') { drawCards(); planWave(); banner = m === 'endless' ? 'ENXAME SEM FIM' : 'FASE ' + (idx + 1); bannerT = 2; save.games = (save.games | 0) + 1; mission('play', 1); persist(); only('play'); sfx('wave'); updHint(); }
+  function resizeGrid() {
+    const [nc, nr] = GRID[save.cr.lvl - 1], old = save.grid, oc = save.cols, orr = save.rows;
+    const g: Cell[] = Array.from({ length: nc * nr }, () => ({ b: null, stock: {} }));
+    const ox = Math.floor((nc - oc) / 2), oy = Math.floor((nr - orr) / 2);
+    for (let y = 0; y < orr; y++) for (let x = 0; x < oc; x++) g[(y + oy) * nc + (x + ox)] = old[y * oc + x];
+    save.grid = g; save.cols = nc; save.rows = nr; sel = -1;
   }
-  function startDemo() {
-    startGame('demo', 0);
-    const put = (q: number, r: number, t: string) => { const c = cells.get(key(q, r)); if (c && !c.t) { c.t = t; c.hp = c.max = maxHp(t); } };
-    put(1, 0, 'operaria'); put(0, 1, 'flor'); put(-1, 1, 'operaria'); put(-1, 0, 'guarda'); put(0, -1, 'ferrao'); put(1, -1, 'flor'); put(2, -1, 'operaria'); put(-2, 1, 'cera'); put(1, 1, 'grude');
-    for (const [q, r, id] of [[4, -2, 'vespa'], [-3, -1, 'rapida'], [-1, 4, 'bruto']] as [number, number, string][]) addWasp(id, q, r);
-  }
-  function addWasp(id: string, q: number, r: number) {
-    const W0 = WASPS[id], p = hexXY(q, r);
-    let hp = W0.hp;
-    if (mode === 'endless') hp = Math.round(hp * (1 + turn * .045));
-    else if (mode === 'camp') hp = Math.round(hp * (1 + L.region * .12));
-    wasps.push({ uid: uid++, id, q, r, hp, max: hp, stuck: 0, x: p.x, y: p.y - 40, hurt: 0, lx: 0, ly: 0, born: clock, sum: 0 });
+  function learn(id: string) {
+    const A = ABILITIES.find(a => a.id === id); if (!A || save.cr.ab[id]) return;
+    if (!has('oficina')) { sfx('nope'); toast('Construa uma Oficina primeiro (a planta aparece nas Colinas de Pedra).'); return; }
+    if (save.cr.lvl < A.lvl) { sfx('nope'); toast('A criatura precisa estar no nível ' + A.lvl + '. Alimente ela!'); return; }
+    if (!pay(A.cost)) return;
+    save.cr.ab[id] = true; sfx('grow'); banner(A.name.toUpperCase() + '!'); toast('A criatura aprendeu ' + A.name + ': ' + A.desc);
+    persist(); emit();
   }
 
-  /* ---------- tabuleiro na tela ---------- */
-  function geo() {
-    const x0 = LEFT_W + INS.l + 8, x1 = W - RIGHT_W - INS.r - 8, y0 = 8 + INS.t, y1 = H - 8 - INS.b;
-    const menu = mode === 'demo';
-    const aw = menu ? W * .5 : x1 - x0, ah = menu ? H * .78 : y1 - y0;
-    const s = Math.max(10, Math.min(aw / (Math.sqrt(3) * (2 * N + 1)), ah / (1.5 * 2 * N + 2)));
-    const cx = menu ? W * .68 : (x0 + x1) / 2, cy = menu ? H * .55 : (y0 + y1) / 2;
-    return { s, cx, cy };
-  }
-  function hexXY(q: number, r: number) { const G = geo(); return { x: G.cx + G.s * Math.sqrt(3) * (q + r / 2), y: G.cy + G.s * 1.5 * r }; }
-  function pick(x: number, y: number) {
-    const G = geo(); const px = (x - G.cx) / G.s, py = (y - G.cy) / G.s;
-    let q = (Math.sqrt(3) / 3 * px - py / 3), r = 2 / 3 * py; let s = -q - r;
-    let rq = Math.round(q), rr = Math.round(r); const rs = Math.round(s);
-    const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s);
-    if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
-    return cells.get(key(rq, rr)) || null;
+  /* ---------- custos ---------- */
+  const discount = () => Math.min(.25, count('engenheiro') * .05);
+  const costOf = (bag: Bag, build = false) => { const o: Bag = {}; for (const k in bag) o[k as Res] = Math.ceil(bag[k as Res]! * (build ? 1 - discount() : 1)); return o; };
+  const canPay = (bag: Bag) => Object.keys(bag).every(k => (save.res[k as Res] || 0) >= bag[k as Res]!);
+  function pay(bag: Bag) {
+    const miss = Object.keys(bag).filter(k => (save.res[k as Res] || 0) < bag[k as Res]!);
+    if (miss.length) { sfx('nope'); toast('Falta ' + miss.map(k => (bag[k as Res]! - Math.floor(save.res[k as Res] || 0)) + ' de ' + RES_INFO[k].name.toLowerCase()).join(', ') + '.'); return false; }
+    for (const k in bag) save.res[k as Res] = (save.res[k as Res] || 0) - bag[k as Res]!;
+    return true;
   }
 
-  /* ---------- caminho das vespas: custo até a Rainha ---------- */
-  function field() {
-    const dist = new Map<string, number>(); for (const k of cells.keys()) dist.set(k, Infinity);
-    dist.set(key(0, 0), 0);
-    const open: [number, number, number][] = [[0, 0, 0]];
-    while (open.length) {
-      let bi = 0; for (let i = 1; i < open.length; i++) if (open[i][2] < open[bi][2]) bi = i;
-      const [q, r, d] = open.splice(bi, 1)[0];
-      if (d > (dist.get(key(q, r)) as number)) continue;
-      for (const [a, b] of DIRS) {
-        const nq = q + a, nr = r + b, c = cells.get(key(nq, nr)); if (!c || c.t === 'pedra') continue;
-        const cost = c.t && c.t !== 'rainha' ? 1 + c.hp * 1.6 : 1;
-        const nd = d + cost; if (nd < (dist.get(key(nq, nr)) as number)) { dist.set(key(nq, nr), nd); open.push([nq, nr, nd]); }
-      }
+  /* ---------- cidade: construir, mover, desmontar ---------- */
+  let sel = -1, moving = -1;
+  const known = () => BUILDINGS.filter(b => save.visited.includes(b.from));
+  function tapCell(i: number) {
+    if (moving >= 0) {
+      if (i !== moving) { const a = save.grid[moving]; save.grid[moving] = save.grid[i]; save.grid[i] = a; sfx('place'); toast('Construção movida.'); persist(); }
+      moving = -1; sel = i; emit(); return;
     }
-    return dist;
+    sel = i; sfx('select'); ui.show.build = true; ui.show.city = false; emit();
+  }
+  function build(id: string) {
+    if (sel < 0 || save.grid[sel].b) return;
+    const B = BUILD[id]; if (!B || !known().includes(B)) return;
+    if (!pay(costOf(B.cost, true))) return;
+    save.grid[sel] = { b: id, stock: {} }; born[sel] = clock; sfx('build');
+    if (id === 'casa') fillHomes();
+    persist(); close('build');
+  }
+  function demolish() {
+    if (sel < 0 || !save.grid[sel].b) return;
+    const B = BUILD[save.grid[sel].b!];
+    if (B.id === 'casa' && save.vil.length > homes() - 2) { sfx('nope'); toast('Moradores vivem nessa casa. Construa outra antes.'); return; }
+    collectAll(true);
+    for (const k in B.cost) save.res[k as Res] = Math.min(cap(k as Res), (save.res[k as Res] || 0) + Math.floor(B.cost[k as Res]! / 2));
+    save.grid[sel] = { b: null, stock: {} }; sfx('break'); toast(B.name + ' desmontada (metade do material voltou).');
+    persist(); close('build');
+  }
+  function startMove() { if (sel < 0 || !save.grid[sel].b) return; moving = sel; close('build'); toast('Toque no espaço para onde quer levar.'); }
+
+  /* ---------- viagem ---------- */
+  const route = (a: number, b: number) => ROUTES.find(r => (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a));
+  function reqMissing(to: number) {
+    const R = REGIONS[to], miss: string[] = [];
+    for (const n of R.need || []) if (!save.cr.ab[n]) miss.push(ABILITIES.find(a => a.id === n)!.name);
+    if (R.size && save.cr.lvl < R.size) miss.push('criatura nível ' + R.size);
+    return miss;
+  }
+  function travelCost(to: number) {
+    const r = route(save.region, to)!; const n = save.vil.length;
+    const dur = Math.round(r[2] * (has('farol') ? .7 : 1));
+    return { dur, food: r[3] + Math.ceil(n * 1.5), water: r[4] + Math.ceil(n * 1) };
+  }
+  function travel(to: number) {
+    if (save.travel) { toast('A criatura já está viajando.'); return; }
+    if (to === save.region || !route(save.region, to)) { toast('Não tem caminho direto daqui.'); return; }
+    const miss = reqMissing(to); if (miss.length) { sfx('nope'); toast('Para ir até ' + REGIONS[to].name + ' falta: ' + miss.join(', ') + '.'); return; }
+    if (exp) { toast('Espere a expedição voltar.'); return; }
+    const c = travelCost(to);
+    if (!pay({ comida: c.food, agua: c.water })) return;
+    collectAll(true);
+    save.travel = { from: save.region, to, start: now(), dur: c.dur };
+    sfx('travel'); toast('Partimos para ' + REGIONS[to].name + '! A cidade continua trabalhando na viagem.');
+    persist(); close('map');
+  }
+  function arrive() {
+    const to = save.travel.to; save.travel = null; save.region = to;
+    const R = REGIONS[to], first = !save.visited.includes(to);
+    banner(R.name.toUpperCase()); sfx('arrive');
+    if (first) {
+      save.visited.push(to);
+      if (R.gift) for (const k in R.gift) save.res[k as Res] = Math.min(cap(k as Res), (save.res[k as Res] || 0) + R.gift[k as Res]!);
+      const nb = BUILDINGS.filter(b => b.from === to);
+      setTimeout(() => {
+        toast('Descoberta! ' + R.desc + (nb.length ? ' Planta nova: ' + nb.map(b => b.name).join(', ') + '.' : ''));
+        if (R.people.length) recruit(R.people[0]);
+        if (to === 9 && !save.done) { save.done = true; banner('VOCÊS CHEGARAM À TERRA DOS GIGANTES!'); }
+      }, 1200);
+    } else toast('De volta a ' + R.name + '.');
+    persist(); emit();
   }
 
-  /* ---------- jogada do jogador ---------- */
-  const adjHive = (c: Cell) => DIRS.some(([a, b]) => { const n = cells.get(key(c.q + a, c.r + b)); return !!(n && n.t && n.t !== 'pedra'); });
-  const waspAt = (q: number, r: number) => wasps.find(w => w.q === q && w.r === r);
-  function canPlace(c: Cell, id: string) {
-    if (CARD[id].spell) return true;
-    return !c.t && !waspAt(c.q, c.r) && adjHive(c);
+  /* ---------- expedições ---------- */
+  let exp: any = null;
+  const free = () => save.vil.filter((v: Villager) => v.rest <= now());
+  function expStart(type: string, ids: number[]) {
+    if (save.travel) { toast('Durante a viagem não dá para sair em expedição.'); return; }
+    const team = save.vil.filter((v: Villager) => ids.includes(v.id) && v.rest <= now()).slice(0, 3);
+    if (!team.length) { toast('Escolha de 1 a 3 moradores descansados.'); return; }
+    const R = region(), pool = EVENTS.filter(e => R.danger >= .15 || e.tag !== 'fera'), evs: any[] = [];
+    while (evs.length < 3 && pool.length) evs.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    exp = { type, team: team.map((v: Villager) => v.id), evs, i: 0, score: 0, hurt: 0, log: [] as string[], done: false, reward: null };
+    sfx('click'); emit();
   }
-  const costOf = (h: HandCard) => h.free ? 0 : CARD[h.id].cost;
-  function tapCell(c: Cell) {
-    if (phase !== 'player') return;
-    if (sel < 0 || !hand[sel]) {
-      if (c.t && c.t !== 'pedra') { const nm = c.t === 'rainha' ? 'Rainha' : CARD[c.t].name; toast(nm + ': ' + (c.t === 'rainha' ? queenHp + '/' + queenMax : c.hp + '/' + c.max) + ' de vida' + (c.t !== 'rainha' ? ' · ' + CARD[c.t].desc : '')); }
-      else { const w = waspAt(c.q, c.r); if (w) toast(WASPS[w.id].name + ': ' + w.hp + ' de vida, morde ' + WASPS[w.id].dmg + (WASPS[w.id].spd > 1 ? ', anda 2 casas' : '')); }
-      return;
-    }
-    const h = hand[sel], C = CARD[h.id];
-    if (honey < costOf(h)) { sfx('nope'); toast('Falta mel! Essa carta custa ' + costOf(h) + '.'); return; }
-    if (!canPlace(c, h.id)) { sfx('nope'); toast(c.t || waspAt(c.q, c.r) ? 'Essa casa está ocupada.' : 'Coloque encostado na colmeia (peças amarelas).'); return; }
-    honey -= costOf(h);
-    hand.splice(sel, 1); if (!h.free) discard.push(h.id); sel = -1;
-    const p = hexXY(c.q, c.r);
-    if (C.spell) {
-      if (h.id === 'bomba') {
-        const dmg = 3 + (cardLvl('bomba') >= 3 ? 1 : 0) + (cardLvl('bomba') >= 5 ? 1 : 0);
-        sfx('boom'); burst(p.x, p.y, 26, ['#ffe040', '#f8a020', '#fff']);
-        for (const w of wasps.slice()) if (hdist(w.q, w.r, c.q, c.r) <= 1) hurtWasp(w, dmg);
-        mission('bomba', 1);
-      } else if (h.id === 'geleia') {
-        const amt = 3 + cardLvl('geleia') - 1; sfx('heal');
-        for (const n of cells.values()) if (n.t && n.t !== 'pedra' && hdist(n.q, n.r, c.q, c.r) <= 1) {
-          const pp = hexXY(n.q, n.r);
-          if (n.t === 'rainha') { queenHp = Math.min(queenMax, queenHp + amt); } else n.hp = Math.min(n.max, n.hp + amt);
-          float(pp.x, pp.y - 10, '+' + amt, '#5cdc5c');
-        }
-      }
-    } else {
-      c.t = h.id; c.hp = c.max = maxHp(h.id); c.timer = 0; c.born = clock; sfx('place'); burst(p.x, p.y, 8, ['#fff4c0', '#ffd860']);
-      mission(h.id, 1);
-      if (save.tut < 2) save.tut = 2;
-    }
-    updHint(); emit();
+  function chance(opt: any) {
+    let c = opt.base;
+    if (opt.role) { const best = save.vil.filter((v: Villager) => exp.team.includes(v.id) && v.role === opt.role).reduce((a: number, v: Villager) => Math.max(a, v.lvl), 0); if (best) c += .25 + (best - 1) * .05; }
+    if (has('torre')) c += .1;
+    c -= region().danger * (exp.evs[exp.i].tag === 'fera' ? .8 : .3);
+    return clamp(c, .1, .95);
   }
-  function selCard(i: number) {
-    if (phase !== 'player') return;
-    if (sel === i) { sel = -1; emit(); return; }
-    const h = hand[i]; if (!h) return;
-    sel = i; sfx('select');
-    if (honey < costOf(h)) toast('Falta mel para ' + CARD[h.id].name + ' (custa ' + costOf(h) + ').');
-    updHint(); emit();
-  }
-  function recycle() {
-    if (phase !== 'player' || sel < 0 || !hand[sel]) return;
-    const h = hand[sel]; if (recycled.has(turn)) { toast('Você já trocou uma carta neste turno.'); return; }
-    hand.splice(sel, 1); if (!h.free) discard.push(h.id); sel = -1; honey += 1; recycled.add(turn); sfx('honey');
-    toast('Carta trocada por 1 de mel. A mão enche no próximo turno.'); emit();
-  }
-  function updHint() {
-    if (mode !== 'camp' || lvlIdx > 1) { hint = ''; return; }
-    if (sel >= 0) hint = CARD[hand[sel]?.id]?.spell ? 'Toque numa casa do tabuleiro para usar o feitiço.' : 'Toque numa casa clara, encostada na colmeia.';
-    else if (turn === 1 && save.tut < 2) hint = 'Toque numa carta aqui do lado para escolher. Comece com Operárias: elas fazem mel!';
-    else hint = 'Quando acabar, toque em FIM DO TURNO. As vespas vêm dos pontos vermelhos.';
-  }
-
-  /* ---------- fim do turno ---------- */
-  function endTurn() {
-    if (phase !== 'player') return;
-    phase = 'resolve'; sel = -1; hint = ''; emit();
-    queue = [];
-    const step = (t: number, f: () => void) => queue.push({ t, f });
-    step(.05, produce);
-    step(.55, defend);
-    step(.55, () => moveWasps(0));
-    if (wasps.some(w => WASPS[w.id].spd > 1)) step(.45, () => moveWasps(1));
-    step(.5, spawn);
-    step(.45, nextTurn);
-  }
-  function produce() {
-    let total = 0;
-    for (const c of cells.values()) {
-      const p = () => hexXY(c.q, c.r);
-      if (c.t === 'operaria') {
-        let v = 1 + (cardLvl('operaria') >= 4 ? 1 : 0);
-        for (const [a, b] of DIRS) { const n = cells.get(key(c.q + a, c.r + b)); if (n && n.t === 'flor') v += cardLvl('flor') >= 5 ? 2 : 1; }
-        total += v; const pp = p(); float(pp.x, pp.y - 14, '+' + v, '#ffd820');
-      } else if (c.t === 'rainha') { total += 1; const pp = p(); float(pp.x + 14, pp.y - 24, '+1', '#ffd820'); }
-      else if (c.t === 'bercario') {
-        c.timer++;
-        if (c.timer >= (cardLvl('bercario') >= 4 ? 1 : 2) && hand.length < 6) { c.timer = 0; hand.push({ id: 'operaria', free: true, uid: uid++ }); const pp = p(); float(pp.x, pp.y - 14, 'Operária!', '#e0c8ff', .8); }
-      }
-    }
-    honey += total; honeyTotal += total; if (total) { sfx('honey'); mission('honey', total); }
+  function expChoose(k: number) {
+    if (!exp || exp.done) return;
+    const ev = exp.evs[exp.i], opt = k === 0 ? ev.a : ev.b;
+    const ok = Math.random() < chance(opt);
+    if (ok) { exp.score++; exp.log.push('✓ ' + opt.txt + ': deu certo!'); sfx('good'); }
+    else { exp.hurt++; exp.log.push('✗ ' + opt.txt + ': não deu certo.'); sfx('bad'); }
+    exp.i++;
+    if (exp.i >= exp.evs.length) finishExp();
     emit();
   }
-  function defend() {
-    const any = wasps.length > 0;
-    for (const c of cells.values()) {
-      if (!wasps.length) break;
-      const p = hexXY(c.q, c.r);
-      if (c.t === 'guarda' || c.t === 'rainha') {
-        const adj = wasps.filter(w => hdist(w.q, w.r, c.q, c.r) === 1).sort((a, b) => a.hp - b.hp);
-        if (adj.length) { const w = adj[0]; const dmg = c.t === 'rainha' ? 1 : 2 + (cardLvl('guarda') >= 3 ? 1 : 0) + (cardLvl('guarda') >= 5 ? 1 : 0); const wp = hexXY(w.q, w.r); shots.push({ x0: p.x, y0: p.y, x1: wp.x, y1: wp.y, t: .25, c: '#fff' }); hurtWasp(w, dmg); sfx('sting', .7); }
-      } else if (c.t === 'ferrao') {
-        let best: WaspE | null = null, bd = 99;
-        for (const w of wasps) { const d = hdist(w.q, w.r, c.q, c.r); if (d <= 2 && (d < bd || (d === bd && best && w.hp < best.hp))) { best = w; bd = d; } }
-        if (best) { const wp = hexXY(best.q, best.r); shots.push({ x0: p.x, y0: p.y - 10, x1: wp.x, y1: wp.y, t: .3, c: '#ff8040' }); hurtWasp(best, 1 + (cardLvl('ferrao') >= 4 ? 1 : 0)); sfx('shoot', .7); }
-      }
+  function finishExp() {
+    const R = region(), team = save.vil.filter((v: Villager) => exp.team.includes(v.id));
+    const ex = team.filter((v: Villager) => v.role === 'explorador').reduce((a: number, v: Villager) => a + .15 + (v.lvl - 1) * .05, 0);
+    const mult = (.6 + exp.score * .25 - exp.hurt * .1) * (1 + ex);
+    const loot: Bag = {};
+    const add = (r: Res, n: number) => { n = Math.max(0, Math.round(n)); if (n) loot[r] = (loot[r] || 0) + n; };
+    if (exp.type === 'coletar') for (const k in R.loot) add(k as Res, R.loot[k as Res]! * mult);
+    else if (exp.type === 'explorar') { for (const k in R.loot) add(k as Res, R.loot[k as Res]! * mult * .5); add('cristal', 2 + exp.score * 2); add('metal', exp.score * 2); }
+    else for (const k in R.loot) add(k as Res, R.loot[k as Res]! * mult * .3);
+    let full = false;
+    for (const k in loot) { const r = k as Res, room = Math.max(0, cap(r) - (save.res[r] || 0)); if (room < loot[r]!) full = true; save.res[r] = (save.res[r] || 0) + Math.min(room, loot[r]!); }
+    let person: string | null = null, crXP = 0;
+    if (exp.type === 'resgatar' && exp.score >= 1) { const role = R.people[Math.floor(Math.random() * R.people.length)] || 'explorador'; person = role; recruit(role); }
+    if (exp.type === 'explorar') { crXP = 5 + exp.score * 5; growXP(crXP); }
+    const ups: string[] = [];
+    for (const v of team) {
+      v.xp += 10 + exp.score * 6; v.rest = now() + REST_S * 1000 * (exp.hurt >= 2 ? 1.6 : 1) * (1 - Math.min(.3, count('cuidador') * .08));
+      while (v.lvl < VXP.length + 1 && v.xp >= VXP[v.lvl - 1]) { v.xp -= VXP[v.lvl - 1]; v.lvl++; ups.push(v.name + ' subiu para o nível ' + v.lvl + '!'); }
     }
-    void any;
-  }
-  function hurtWasp(w: WaspE, d: number) {
-    w.hp -= d; w.hurt = .2; const p = hexXY(w.q, w.r); float(p.x, p.y - 18, '-' + d, '#ffffff');
-    if (w.hp <= 0) {
-      wasps = wasps.filter(x => x !== w); kills++; mission('kills', 1); sfx('kill'); burst(p.x, p.y, 14, [WASPS[w.id].col, '#20202c', '#fff']);
-      if (w.id === 'rainha') { banner = 'RAINHA VESPA DERROTADA!'; bannerT = 2.2; }
-    }
-  }
-  function moveWasps(k: number) {
-    const F = field();
-    const order = wasps.slice().sort((a, b) => (F.get(key(a.q, a.r)) as number) - (F.get(key(b.q, b.r)) as number));
-    for (const w of order) {
-      if (!wasps.includes(w)) continue;
-      const Wd = WASPS[w.id];
-      if (k === 0 && w.stuck > 0) { w.stuck--; continue; }
-      if (k >= Wd.spd) continue;
-      /* rainha vespa chama ajuda */
-      if (w.id === 'rainha' && k === 0) { w.sum++; if (w.sum % 2 === 0) { const free = DIRS.map(([a, b]) => cells.get(key(w.q + a, w.r + b))).filter(c => c && !c.t && !waspAt(c.q, c.r)) as Cell[]; if (free.length) { const c = free[Math.floor(Math.random() * free.length)]; addWasp('vespa', c.q, c.r); } } }
-      let best: Cell | null = null, bd = F.get(key(w.q, w.r)) as number;
-      for (const [a, b] of DIRS) {
-        const c = cells.get(key(w.q + a, w.r + b)); if (!c || c.t === 'pedra') continue;
-        const d = F.get(key(c.q, c.r)) as number;
-        if (c.t === 'rainha') { best = c; bd = -1; break; }
-        if (d < bd && !waspAt(c.q, c.r)) { best = c; bd = d; }
-      }
-      if (!best) continue;
-      const wp = hexXY(w.q, w.r), bp = hexXY(best.q, best.r);
-      if (best.t) {
-        /* morde a peça */
-        w.lx = (bp.x - wp.x) * .45; w.ly = (bp.y - wp.y) * .45;
-        const dmg = Wd.dmg;
-        if (best.t === 'rainha') { queenHp -= dmg; float(bp.x, bp.y - 30, '-' + dmg, '#ff5060', 1.2); sfx('queen'); best.hit = .3; if (queenHp <= 0) { queenHp = 0; lose(); return; } }
-        else {
-          best.hp -= dmg; best.hit = .3; float(bp.x, bp.y - 16, '-' + dmg, '#ff8080'); sfx('bite', .8);
-          if (best.t === 'grude') w.stuck = Math.max(w.stuck, cardLvl('grude') >= 4 ? 2 : 1);
-          if (best.t === 'cardo') hurtWasp(w, 2 + (cardLvl('cardo') >= 4 ? 1 : 0));
-          if (best.hp <= 0) { burst(bp.x, bp.y, 12, ['#fff4c0', '#c89a3c', INK]); sfx('break'); best.t = null; best.hp = 0; }
-        }
-      } else { w.q = best.q; w.r = best.r; }
-    }
-    emit();
-  }
-  function edgeCells() { return [...cells.values()].filter(c => hdist(c.q, c.r) === N && c.t !== 'pedra'); }
-  function planWave() {
-    plan = [];
-    if (mode === 'camp' && turn > maxTurns) return;
-    let n: number;
-    let types: [string, number][];
-    if (mode === 'endless') { n = Math.floor(.8 + turn * .3 + Math.random() * .99); types = turn < 4 ? [['vespa', 1]] : turn < 8 ? [['vespa', 3], ['rapida', 1]] : [['vespa', 3], ['rapida', 2], ['bruto', 1 + Math.floor(turn / 10)]]; }
-    else { n = Math.floor(L.base + L.grow * turn + Math.random() * .99); types = L.types; if (turn === 1) n = Math.min(n, 1); }
-    const free = edgeCells().filter(c => !c.t && !waspAt(c.q, c.r));
-    const tot = types.reduce((a, t) => a + t[1], 0);
-    const bossTurn = (mode === 'camp' && L.boss && turn === maxTurns) || (mode === 'endless' && turn % 10 === 0);
-    if (bossTurn && free.length) { const c = free.splice(Math.floor(Math.random() * free.length), 1)[0]; plan.push({ q: c.q, r: c.r, id: 'rainha' }); }
-    for (let i = 0; i < n && free.length; i++) {
-      let x = Math.random() * tot, id = types[0][0]; for (const [t, w] of types) { x -= w; if (x <= 0) { id = t; break; } }
-      const c = free.splice(Math.floor(Math.random() * free.length), 1)[0]; plan.push({ q: c.q, r: c.r, id });
-    }
-  }
-  function spawn() {
-    for (const p of plan) { const c = cells.get(key(p.q, p.r)); if (!c || c.t || waspAt(p.q, p.r)) continue; addWasp(p.id, p.q, p.r); }
-    if (plan.length) sfx('buzz');
-    if (plan.some(p => p.id === 'rainha')) { banner = 'A RAINHA VESPA CHEGOU!'; bannerT = 2.2; sfx('wave'); }
-    plan = [];
-    emit();
-  }
-  function nextTurn() {
-    if (phase === 'over') return;
-    turn++;
-    if (mode === 'camp' && turn > maxTurns && !wasps.length) { win(); return; }
-    if (mode === 'camp' && turn > maxTurns + 3) {
-      /* sobreviveu a todas as ondas: as vespas que sobraram fogem */
-      for (const w of wasps) { const p = hexXY(w.q, w.r); burst(p.x, p.y, 6, ['#fff', WASPS[w.id].col]); }
-      wasps = []; banner = 'AS VESPAS FUGIRAM!'; bannerT = 2; win(); return;
-    }
-    if (mode === 'endless') mission('wave', turn, true);
-    planWave(); drawCards(); phase = 'player'; sfx('turn');
-    if (mode === 'camp' && turn === maxTurns) { banner = 'ÚLTIMA ONDA!'; bannerT = 1.8; }
-    else if (mode === 'camp' && turn > maxTurns) { banner = turn === maxTurns + 1 ? 'AGUENTE MAIS 3 TURNOS!' : 'FALTAM ' + (maxTurns + 4 - turn) + ' TURNOS!'; bannerT = 1.6; }
-    updHint(); emit();
-  }
-
-  /* ---------- fim da partida ---------- */
-  function win() {
-    phase = 'over'; won = true; overT = 0; sfx('win');
-    const pct = queenHp / queenMax, stars = pct >= .8 ? 3 : pct >= .4 ? 2 : 1;
-    const prev = save.stars[lvlIdx] | 0, first = prev === 0;
-    const coins = 30 + lvlIdx * 8 + stars * 10 + kills, xp = 40 + lvlIdx * 6, gems = first && L.boss ? 3 : 0;
-    save.stars[lvlIdx] = Math.max(prev, stars); save.unl = Math.max(save.unl | 0, Math.min(LEVELS.length, lvlIdx + 2));
-    save.coins += coins; save.gems += gems; addXP(xp);
-    mission('win', 1); if (stars === 3) mission('stars3', 1);
-    persist();
-    result = { win: true, title: 'VITÓRIA!', sub: L.name, stars, lines: [['Vespas derrotadas', String(kills)], ['Mel juntado', String(honeyTotal)], ['Vida da Rainha', queenHp + ' / ' + queenMax]], coins, xp, gems, next: lvlIdx + 1 < LEVELS.length, mode };
-    setTimeout(() => { if (phase === 'over') only('res'); }, 1300);
-  }
-  function lose() {
-    if (phase === 'over') return;
-    phase = 'over'; won = false; overT = 0; queue = []; sfx('lose');
-    const hp = hexXY(0, 0); burst(hp.x, hp.y, 30, ['#ffd820', INK, '#fff']);
-    let coins: number, xp: number, title: string, lines: any[];
-    if (mode === 'endless') {
-      const wave = turn; coins = wave * 4 + kills; xp = wave * 5; title = 'FIM DO ENXAME';
-      const rec = wave > (save.bestWave | 0); save.bestWave = Math.max(save.bestWave | 0, wave);
-      lines = [['Você chegou na onda', String(wave)], ['Vespas derrotadas', String(kills)], ['Recorde', save.bestWave + (rec ? '  (novo!)' : '')]];
-    } else { coins = kills + 5; xp = 15; title = 'A RAINHA CAIU'; lines = [['Onda', turn + ' / ' + maxTurns], ['Vespas derrotadas', String(kills)]]; }
-    save.coins += coins; addXP(xp); persist();
-    result = { win: false, title, sub: mode === 'endless' ? 'Enxame sem fim' : L.name, stars: 0, lines, coins, xp, gems: 0, next: false, mode };
-    setTimeout(() => { if (phase === 'over') only('res'); }, 1500);
+    save.exps = (save.exps | 0) + 1;
+    exp.done = true; exp.reward = { loot, person, crXP, ups, full, score: exp.score };
+    sfx(exp.score >= 2 ? 'win' : 'collect'); persist();
   }
 
   /* ---------- efeitos ---------- */
-  function float(x: number, y: number, s: string, c: string, k = 1) { floats.push({ x, y, s, c, t: 1.1, k }); }
-  function burst(x: number, y: number, n: number, cols: string[]) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = 40 + Math.random() * 120; parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, t: .5 + Math.random() * .4, c: cols[i % cols.length], r: 2 + Math.random() * 3 }); } }
+  let clock = 0, bump = 0, walkOff = 0, bannerS = '', bannerT = 0;
+  const born: { [i: number]: number } = {};
+  let floats: { x: number; y: number; s: string; c: string; t: number }[] = [];
+  function banner(s: string) { bannerS = s; bannerT = 2.6; }
+  let deck = { x: 0, y: 0, w: 0, h: 0 };
+  function cellRect(i: number) {
+    const cs = Math.min(deck.w / save.cols, deck.h / save.rows), gx = deck.x + (deck.w - cs * save.cols) / 2, gy = deck.y + (deck.h - cs * save.rows) / 2;
+    const x = i % save.cols, y = Math.floor(i / save.cols); return { x: gx + x * cs, y: gy + y * cs, s: cs };
+  }
+  function floatAt(i: number, s: string, c: string) { const r = cellRect(i); floats.push({ x: r.x + r.s / 2 + (Math.random() - .5) * r.s * .4, y: r.y + r.s * .3, s, c, t: 1.4 }); }
 
   /* ---------- laço ---------- */
-  let last = pf.now();
-  function tick(now: number) {
-    const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
-    if (ui.show.pause) { pf.audio.music(null); return; }
-    clock += dt;
+  let last = pf.now(), simAcc = 0;
+  function tick(nowp: number) {
+    const dt = Math.min(.1, Math.max(0, (nowp - last) / 1000)); last = nowp; clock += dt;
     try {
-      if (queue.length && phase !== 'over') { qT += dt; if (qT >= queue[0].t) { qT = 0; const it = queue.shift()!; it.f(); } }
-      if (mode === 'demo') demoTick(dt);
-      for (const w of wasps) { const p = hexXY(w.q, w.r); w.x += (p.x - w.x) * Math.min(1, dt * 9); w.y += (p.y - w.y) * Math.min(1, dt * 9); w.lx *= Math.pow(.02, dt); w.ly *= Math.pow(.02, dt); w.hurt = Math.max(0, w.hurt - dt); }
-      for (const c of cells.values()) c.hit = Math.max(0, c.hit - dt);
-      for (const f of floats) { f.t -= dt; f.y -= 26 * dt; } floats = floats.filter(f => f.t > 0);
-      for (const s of shots) s.t -= dt; shots = shots.filter(s => s.t > 0);
-      for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; p.t -= dt; } parts = parts.filter(p => p.t > 0);
-      bannerT = Math.max(0, bannerT - dt);
-      pf.audio.music(ui.show.play || ui.show.res ? 'play' : 'menu');
+      simAcc += dt;
+      if (simAcc >= 1) { simulate(simAcc); simAcc = 0; if (save.travel && now() >= save.travel.start + save.travel.dur * 1000) arrive(); if (Math.floor(clock) % 5 === 0) persist(); emit(); }
+      if (save.travel) walkOff += dt * 90;
+      bump = Math.max(0, bump - dt * 2.5); bannerT = Math.max(0, bannerT - dt);
+      for (const f of floats) { f.t -= dt; f.y -= 22 * dt; } floats = floats.filter(f => f.t > 0);
+      pf.audio.music(save.travel ? 'travel' : 'city');
     } catch (e) { console.error(e); }
-  }
-  let demoT = 0;
-  function demoTick(dt: number) {
-    demoT += dt; if (demoT < 2.2) return; demoT = 0;
-    /* fundo do menu: vespas rodeando e os guardas picando */
-    if (wasps.length < 3) { const e = edgeCells().filter(c => !waspAt(c.q, c.r)); const c = e[Math.floor(Math.random() * e.length)]; addWasp(['vespa', 'rapida', 'bruto'][Math.floor(Math.random() * 3)], c.q, c.r); }
-    const F = field();
-    for (const w of wasps) {
-      const opts = DIRS.map(([a, b]) => cells.get(key(w.q + a, w.r + b))).filter(c => c && !c.t && !waspAt(c.q, c.r) && hdist(c.q, c.r) >= 2) as Cell[];
-      if (opts.length) { opts.sort((a, b) => (F.get(key(a.q, a.r)) as number) - (F.get(key(b.q, b.r)) as number)); const c = Math.random() < .5 ? opts[0] : opts[Math.floor(Math.random() * opts.length)]; w.q = c.q; w.r = c.r; }
-    }
-    for (const w of wasps.slice()) if (Math.random() < .25) { const p = hexXY(w.q, w.r); burst(p.x, p.y, 10, [WASPS[w.id].col, '#fff']); wasps = wasps.filter(x => x !== w); }
   }
 
   /* ---------- desenho ---------- */
   function draw(g: Ctx2D) {
     try {
       g.setTransform(DPR, 0, 0, DPR, 0, 0);
-      const sk = skin(), reg = REGIONS[mode === 'camp' ? L.region : 0];
-      const bg = sk.bg[0] ? sk.bg : reg.bg;
-      const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, bg[0]); gr.addColorStop(1, bg[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
-      /* bolinhas de fundo (pólen) */
-      g.globalAlpha = .18; g.fillStyle = '#fff';
-      for (let i = 0; i < 26; i++) { const x = ((i * 97.3 + clock * (6 + i % 5)) % (W + 40)) - 20, y = (i * 53.7 % H) + Math.sin(clock + i) * 6; g.beginPath(); g.arc(x, y, 2 + (i % 4), 0, 7); g.fill(); }
-      g.globalAlpha = 1;
-      if (!cells.size) return;
-      const G = geo(), s = G.s;
-      const sel0 = sel >= 0 && hand[sel] ? hand[sel].id : null, isSpell = sel0 ? !!CARD[sel0].spell : false;
-      /* sombra do tabuleiro */
-      g.globalAlpha = .18; g.fillStyle = INK; g.beginPath(); g.ellipse(G.cx, G.cy + s * 1.2, s * 8.2, s * 7, 0, 0, 7); g.fill(); g.globalAlpha = 1;
-      /* casas */
-      for (const c of cells.values()) {
-        const p = hexXY(c.q, c.r);
-        hexPath(g, p.x, p.y + s * .12, s * .97); g.fillStyle = sh(sk.line, -.25); g.fill();
-        hexPath(g, p.x, p.y, s * .97); g.fillStyle = ((c.q - c.r) % 3 === 0) ? sk.hex[1] : sk.hex[0]; g.fill(); g.lineWidth = Math.max(1, s * .07); g.strokeStyle = sk.line; g.stroke();
-        if (c.t && c.t !== 'pedra' && c.t !== 'rainha') { hexPath(g, p.x, p.y, s * .82); g.fillStyle = 'rgba(255,190,40,.28)'; g.fill(); }
-        if (sel0 && phase === 'player' && (isSpell || canPlace(c, sel0))) { g.globalAlpha = .35 + .2 * Math.sin(clock * 6); hexPath(g, p.x, p.y, s * .85); g.fillStyle = isSpell ? '#ffe9a0' : '#ffffff'; g.fill(); g.globalAlpha = 1; }
+      const R = region(), T2 = save.travel ? REGIONS[save.travel.to] : null;
+      ground(g, W, H, save.travel ? (walkOff % 2000 < 1000 ? R.id : T2!.id) : R.id, save.travel && walkOff % 2000 >= 1000 ? T2!.bg : R.bg, save.travel && walkOff % 2000 >= 1000 ? T2!.bg2 : R.bg2, walkOff, clock);
+      /* área livre para a criatura */
+      const x0 = LEFT_W + INS.l + 10, x1 = W - INS.r - 10, y0 = TOP_H + INS.t + 6, y1 = H - BOTTOM_H - INS.b;
+      const growK = .72 + save.cr.lvl * .055;
+      const cw = Math.min((x1 - x0) * .7, (y1 - y0) * 1.22) * growK, chh = cw * .56;
+      const cx = (x0 + x1) / 2 - cw * .06, cy = (y0 + y1) / 2 + Math.sin(clock * (save.travel ? 5 : 1.3)) * (save.travel ? 2 : 1);
+      const sc = 1 + bump * .03;
+      g.save(); g.translate(cx, cy); g.scale(sc, sc); g.translate(-cx, -cy);
+      deck = creature(g, cx, cy, cw, chh, clock, { lvl: save.cr.lvl, patas: !!save.cr.ab.patas, nadadeiras: !!save.cr.ab.nadadeiras, carapaca: !!save.cr.ab.carapaca, walk: !!save.travel });
+      /* a cidade */
+      for (let i = 0; i < save.grid.length; i++) {
+        const r = cellRect(i), c = save.grid[i];
+        g.fillStyle = (i + Math.floor(i / save.cols)) % 2 ? '#e4c894' : '#dcbc84'; g.fillRect(r.x + 1, r.y + 1, r.s - 2, r.s - 2);
+        if (i === sel && (ui.show.build || moving >= 0) || i === moving) { g.lineWidth = 3; g.strokeStyle = i === moving ? '#3c8cf0' : '#fff'; g.strokeRect?.(r.x + 3, r.y + 3, r.s - 6, r.s - 6); }
+        if (c.b) {
+          const pop = born[i] != null ? Math.min(1, (clock - born[i]) * 4) : 1;
+          const ready = Object.values(c.stock).some(v => (v as number) >= 1) ? 1 : 0;
+          g.save(); g.translate(r.x + r.s / 2, r.y + r.s / 2); g.scale(.5 + pop * .5, .5 + pop * .5); g.translate(-(r.x + r.s / 2), -(r.y + r.s / 2));
+          building(g, c.b, r.x + r.s / 2, r.y + r.s * .52, r.s * .84, clock + i, ready);
+          g.restore();
+        } else if (moving < 0) { g.globalAlpha = .4; text(g, '+', r.x + r.s / 2, r.y + r.s / 2, r.s * .4, '#a8844c'); g.globalAlpha = 1; }
       }
-      /* onde as vespas vão aparecer */
-      for (const p0 of plan) { const p = hexXY(p0.q, p0.r); const k = .8 + .2 * Math.sin(clock * 7); g.beginPath(); g.arc(p.x, p.y, s * .45 * k, 0, 7); g.fillStyle = p0.id === 'rainha' ? 'rgba(200,20,60,.55)' : 'rgba(230,50,40,.4)'; g.fill(); text(g, '!', p.x, p.y + 1, s * .7, '#fff', 3); }
-      /* peças */
-      for (const c of cells.values()) {
-        if (!c.t) continue;
-        const p = hexXY(c.q, c.r), pop = Math.min(1, (clock - c.born) * 5), sc = c.t === 'rainha' ? 1 : .6 + .4 * pop + (pop < 1 ? Math.sin(pop * Math.PI) * .15 : 0);
-        const jig = c.hit > 0 ? Math.sin(clock * 80) * 2 : 0;
-        piece(g, c.t, p.x + jig, p.y, s * sc * (c.t === 'rainha' ? 1.1 : c.t === 'pedra' || c.t === 'cera' ? 1 : 1.22), clock + c.q, sk.queen);
-        if (c.t !== 'pedra' && c.t !== 'rainha' && c.hp < c.max) hpBar(g, p.x, p.y + s * .62, s * .9, c.hp / c.max, '#5cdc5c');
-      }
-      /* rainha: vida */
-      const qp = hexXY(0, 0); hpBar(g, qp.x, qp.y + s * .78, s * 1.5, queenHp / queenMax, queenHp / queenMax > .4 ? '#ffd820' : '#ff5060');
-      /* vespas */
-      for (const w of wasps) {
-        const Wd = WASPS[w.id], sz = s * 1.02 * Wd.size, born = Math.min(1, (clock - w.born) * 3);
-        g.globalAlpha = born; drawWasp(g, w.x + w.lx, w.y + w.ly - s * .1, sz, clock, w.id, w.hurt, w.stuck); g.globalAlpha = 1;
-        hpBar(g, w.x, w.y + s * .55, s * .8, w.hp / w.max, '#ff5050');
-      }
-      for (const sh0 of shots) { const k = 1 - sh0.t / .3; const x = sh0.x0 + (sh0.x1 - sh0.x0) * k, y = sh0.y0 + (sh0.y1 - sh0.y0) * k; g.beginPath(); g.arc(x, y, Math.max(2, s * .1), 0, 7); g.fillStyle = sh0.c; g.fill(); g.lineWidth = 1.5; g.strokeStyle = INK; g.stroke(); }
-      for (const p of parts) { g.globalAlpha = Math.min(1, p.t * 2); g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fillStyle = p.c; g.fill(); } g.globalAlpha = 1;
-      for (const f of floats) { g.globalAlpha = Math.min(1, f.t * 2); text(g, f.s, f.x, f.y, Math.max(12, s * .6) * f.k, f.c, 4); } g.globalAlpha = 1;
-      if (bannerT > 0 && mode !== 'demo') { g.globalAlpha = Math.min(1, bannerT * 2); text(g, banner, G.cx, G.cy - s * 2.2, Math.min(40, s * 1.5), '#fff', 7); g.globalAlpha = 1; }
+      /* moradores andando no convés */
+      save.vil.slice(0, 8).forEach((v: Villager, k: number) => {
+        const p = (clock * .05 + k * .37 + v.seed * .01) % 1, px = deck.x + 6 + p * (deck.w - 12), py = deck.y + deck.h + 2 - ((k % 2) * 4);
+        if (v.rest > now()) return;
+        g.beginPath(); g.arc(px, py, 4, 0, 7); g.fillStyle = ROLES[v.role].col; g.fill(); g.lineWidth = 1.5; g.strokeStyle = INK; g.stroke();
+      });
+      g.restore();
+      for (const f of floats) { g.globalAlpha = Math.min(1, f.t * 2); text(g, f.s, f.x, f.y, 18, f.c, 4); } g.globalAlpha = 1;
+      if (save.travel) { const p = clamp((now() - save.travel.start) / (save.travel.dur * 1000), 0, 1); const bw = Math.min(260, W * .3), bx = (x0 + x1) / 2 - bw / 2, by = y0 + 6; g.fillStyle = INK; g.fillRect(bx - 3, by - 3, bw + 6, 18); g.fillStyle = '#fff4dc'; g.fillRect(bx, by, bw, 12); g.fillStyle = '#5cc048'; g.fillRect(bx, by, bw * p, 12); text(g, 'Viajando para ' + T2!.name + ' · ' + Math.ceil((1 - p) * save.travel.dur) + 's', (x0 + x1) / 2, by + 26, 15, '#fff', 4); }
+      if (bannerT > 0) { g.globalAlpha = Math.min(1, bannerT * 2); text(g, bannerS, (x0 + x1) / 2, y0 + (y1 - y0) * .2, Math.min(34, W / 24), '#ffe070', 7); g.globalAlpha = 1; }
     } catch (e) { console.error(e); }
-  }
-  function hpBar(g: Ctx2D, x: number, y: number, w: number, v: number, c: string) {
-    const h = Math.max(4, w * .1);
-    g.fillStyle = INK; g.fillRect(x - w / 2 - 1.5, y - 1.5, w + 3, h + 3);
-    g.fillStyle = '#5c3c2c'; g.fillRect(x - w / 2, y, w, h);
-    g.fillStyle = c; g.fillRect(x - w / 2, y, w * clamp(v, 0, 1), h);
   }
 
   /* ---------- toques ---------- */
   function ptrDown(ev: PtrEv): boolean {
-    if (!ui.show.play || phase === 'over') return false;
-    const c = pick(ev.x, ev.y); if (c) tapCell(c);
+    if (!ui.show.city || ui.show.daily || ui.show.away) return false;
+    for (let i = 0; i < save.grid.length; i++) { const r = cellRect(i); if (ev.x >= r.x && ev.x < r.x + r.s && ev.y >= r.y && ev.y < r.y + r.s) { tapCell(i); return false; } }
+    if (moving >= 0) { moving = -1; emit(); }
     return false;
   }
 
   /* ---------- informações para as telas ---------- */
-  const xpInfo = () => ({ lvl: save.plvl, xp: save.xp, need: xpNeed(save.plvl) });
-  function menuInfo() {
-    const d = dailyState(); rollMissions();
-    const mdone = save.miss.list.filter((m: any) => !m.claimed && m.prog >= MISSIONS[m.i].n).length;
-    return { coins: save.coins, gems: save.gems, ...xpInfo(), stars: (save.stars as number[]).reduce((a, b) => a + (b | 0), 0), maxStars: LEVELS.length * 3, bestWave: save.bestWave | 0, dailyCan: d.can, missReady: mdone, sfx: !!save.sfx, mus: !!save.mus, queen: iconImage('rainha', 160), nextUnlock: (CARDS.find(c => c.unlock > save.plvl) || null) && { name: CARDS.find(c => c.unlock > save.plvl)!.name, lvl: CARDS.find(c => c.unlock > save.plvl)!.unlock } };
+  const ri = (k: string, s = 40) => iconImage('res', k, s);
+  function resList(bag: Bag, rich = false) { return Object.keys(bag).map(k => ({ k, n: Math.ceil(bag[k as Res]!), name: RES_INFO[k].name, col: RES_INFO[k].col, img: ri(k), ok: rich ? (save.res[k as Res] || 0) >= bag[k as Res]! : true })); }
+  function goal() {
+    if (readyCount() >= 3) return 'Toque em RECOLHER para guardar a produção.';
+    if (!save.visited.includes(2)) return 'Viaje para as Colinas de Pedra: lá se aprende a fazer Oficinas.';
+    if (!has('oficina')) return 'Construa uma Oficina: com ela a criatura aprende habilidades.';
+    for (const r of [4, 5, 6, 7, 8, 9]) {
+      if (save.visited.includes(r)) continue;
+      const reach = ROUTES.some(rt => (save.visited.includes(rt[0]) && rt[1] === r) || (save.visited.includes(rt[1]) && rt[0] === r));
+      if (!reach) continue;
+      const miss = reqMissing(r);
+      return miss.length ? 'Avistamos ' + REGIONS[r].name + '! Falta: ' + miss.join(', ') + '.' : 'Dá para chegar em ' + REGIONS[r].name + '. Abra o MAPA!';
+    }
+    return save.done ? 'Vocês chegaram à Terra dos Gigantes! Continue crescendo a cidade.' : 'Explore o mapa e cresça a criatura.';
   }
-  function playInfo() {
-    const nextW: { [k: string]: number } = {}; for (const p of plan) nextW[p.id] = (nextW[p.id] || 0) + 1;
+  function cityInfo() {
+    const rates = totalRates();
     return {
-      honey, turn: Math.min(turn, maxTurns), maxTurns: mode === 'endless' ? 0 : maxTurns, queenHp, queenMax, phase, mode, kills, hint, sel,
-      hand: hand.map((h, i) => ({ id: h.id, uid: h.uid, name: CARD[h.id].name, cost: costOf(h), ok: honey >= costOf(h), free: !!h.free, sel: i === sel, spell: !!CARD[h.id].spell, img: iconImage(h.id, 96), lvl: cardLvl(h.id) })),
-      selDesc: sel >= 0 && hand[sel] ? CARD[hand[sel].id].desc : '', canRecycle: sel >= 0 && !recycled.has(turn),
-      next: Object.keys(nextW).map(id => ({ id, n: nextW[id], name: WASPS[id].name, img: iconImage(id, 64, undefined, 'wasp') })),
-      onBoard: wasps.length, pile: drawPile.length,
+      res: RES.map(k => ({ k, n: Math.floor(save.res[k] || 0), cap: cap(k), img: ri(k, 36), rate: Math.round((rates[k] || 0) - (k === 'comida' ? eatRate() : k === 'agua' ? drinkRate() : 0)) })).filter(r => r.n > 0 || r.rate !== 0 || ['comida', 'madeira', 'pedra', 'agua'].includes(r.k)),
+      region: save.travel ? 'Viajando…' : region().name, lvl: save.cr.lvl, ready: readyCount(), goal: goal(), moving: moving >= 0, hungry: hungry(),
+      people: save.vil.length, homes: homes(), free: free().length, traveling: !!save.travel, dailyCan: dailyState().can, sfx: !!save.sfx, mus: !!save.mus,
     };
+  }
+  function buildInfo() {
+    const c = sel >= 0 ? save.grid[sel] : null;
+    if (!c) return { mode: 'none' };
+    if (c.b) {
+      const B = BUILD[c.b], r = rateOf(sel), adjOk = B.adj ? neighbors(sel).some(n => save.grid[n].b === B.adj!.with) : false;
+      return { mode: 'info', id: B.id, name: B.name, desc: B.desc, img: iconImage('build', B.id, 110), rate: resList(r).map(x => ({ ...x, n: Math.round(x.n) })), adj: B.adj ? { txt: B.adj.txt, ok: adjOk } : null, stock: resList(c.stock).filter(x => x.n >= 1).map(x => ({ ...x, n: Math.floor(save.grid[sel].stock[x.k as Res]!) })) };
+    }
+    return {
+      mode: 'empty', discount: Math.round(discount() * 100),
+      list: known().map(B => ({ id: B.id, name: B.name, desc: B.desc, img: iconImage('build', B.id, 90), cost: resList(costOf(B.cost, true), true), ok: canPay(costOf(B.cost, true)), prod: B.prod ? resList(B.prod) : [] })),
+      locked: BUILDINGS.filter(b => !save.visited.includes(b.from)).map(b => ({ name: b.name, where: REGIONS[b.from].name })),
+    };
+  }
+  function creatureInfo() {
+    return {
+      lvl: save.cr.lvl, max: GRID.length, xp: save.cr.xp, need: save.cr.lvl < GRID.length ? CREATURE_XP[save.cr.lvl - 1] : 0, feed: FEED, food: Math.floor(save.res.comida || 0),
+      grid: save.cols + '×' + save.rows, nextGrid: save.cr.lvl < GRID.length ? GRID[save.cr.lvl].join('×') : '', oficina: has('oficina'),
+      abilities: ABILITIES.map(a => ({ id: a.id, name: a.name, desc: a.desc, lvl: a.lvl, have: !!save.cr.ab[a.id], cost: resList(a.cost, true), ok: canPay(a.cost) && save.cr.lvl >= a.lvl && has('oficina') })),
+    };
+  }
+  function peopleInfo() {
+    return {
+      homes: homes(), wait: save.wait.length,
+      list: save.vil.map((v: Villager) => ({ id: v.id, name: v.name, role: v.role, roleName: ROLES[v.role].name, col: ROLES[v.role].col, lvl: v.lvl, xp: v.xp, need: VXP[v.lvl - 1] || 0, rest: Math.max(0, Math.ceil((v.rest - now()) / 1000)), img: iconImage('role', v.role, 72, v.seed) })),
+      roles: Object.keys(ROLES).map(k => ({ k, name: ROLES[k].name, desc: ROLES[k].desc, col: ROLES[k].col, n: count(k) })),
+    };
+  }
+  function expInfo() {
+    const R = region();
+    const base = { region: R.name, danger: Math.round(R.danger * 100), traveling: !!save.travel, types: EXPED, loot: resList(R.loot), torre: has('torre'),
+      people: save.vil.map((v: Villager) => ({ id: v.id, name: v.name, roleName: ROLES[v.role].name, col: ROLES[v.role].col, lvl: v.lvl, rest: Math.max(0, Math.ceil((v.rest - now()) / 1000)), img: iconImage('role', v.role, 64, v.seed) })) };
+    if (!exp) return { ...base, stage: 'pick' };
+    if (exp.done) return { ...base, stage: 'done', log: exp.log, reward: { ...exp.reward, loot: resList(exp.reward.loot), person: exp.reward.person ? ROLES[exp.reward.person].name : null } };
+    const ev = exp.evs[exp.i];
+    const opt = (o: any) => ({ txt: o.txt, role: o.role ? ROLES[o.role].name : '', pct: Math.round(chance(o) * 100), has: o.role ? save.vil.some((v: Villager) => exp.team.includes(v.id) && v.role === o.role) : false });
+    return { ...base, stage: 'event', i: exp.i, n: exp.evs.length, txt: ev.txt, fera: ev.tag === 'fera', a: opt(ev.a), b: opt(ev.b), log: exp.log, team: save.vil.filter((v: Villager) => exp.team.includes(v.id)).map((v: Villager) => ({ name: v.name, img: iconImage('role', v.role, 56, v.seed) })) };
   }
   function mapInfo() {
-    return {
-      coins: save.coins, gems: save.gems, ...xpInfo(),
-      regions: REGIONS.map((rg, ri) => ({ name: rg.name, col: rg.col, levels: LEVELS.map((l, i) => ({ l, i })).filter(o => o.l.region === ri).map(({ l, i }) => ({ i, name: l.name, turns: l.turns, boss: !!l.boss, stars: save.stars[i] | 0, locked: i >= (save.unl | 0) })) })),
-      bestWave: save.bestWave | 0,
-    };
+    const nodes = REGIONS.map(R => {
+      const visited = save.visited.includes(R.id), here = save.region === R.id && !save.travel;
+      const rt = route(save.region, R.id), adj = !!rt && !save.travel;
+      const seen = visited || ROUTES.some(r => (save.visited.includes(r[0]) && r[1] === R.id) || (save.visited.includes(r[1]) && r[0] === R.id));
+      const miss = reqMissing(R.id), c = adj ? travelCost(R.id) : null;
+      return { id: R.id, name: seen ? R.name : '???', x: R.x, y: R.y, col: R.bg, col2: R.bg2, visited, here, seen, adj, miss, desc: seen ? R.desc : 'Uma terra que ninguém conhece.', cost: c, okCost: c ? (save.res.comida || 0) >= c.food && (save.res.agua || 0) >= c.water : false, target: save.travel && save.travel.to === R.id };
+    });
+    const lines = ROUTES.map(r => ({ a: r[0], b: r[1], seen: nodes[r[0]].seen && nodes[r[1]].seen }));
+    return { nodes, lines, traveling: !!save.travel };
   }
-  function deckInfo() {
-    return {
-      coins: save.coins, ...xpInfo(),
-      cards: CARDS.map(c => { const lv = cardLvl(c.id); return { id: c.id, name: c.name, cost: c.cost, spell: !!c.spell, desc: c.desc, up: c.up, lvl: lv, max: CARD_MAX, price: lv >= CARD_MAX ? 0 : upCost(c.id, lv), locked: !unlocked(c.id), unlock: c.unlock, img: iconImage(c.id, 96, '#fce6a8'), hp: c.spell ? 0 : c.hp + lv - 1, inDeck: DECK_COUNT[c.id] || 1 }; }),
-    };
-  }
-  function shopInfo() { return { gems: save.gems, coins: save.coins, skins: SKINS.map(s => ({ id: s.id, name: s.name, price: s.price, owned: save.skins.includes(s.id), using: save.skin === s.id, hex: s.hex, bg: s.bg[0] ? s.bg : REGIONS[0].bg, queen: s.queen })) }; }
-  function missionsInfo() {
-    rollMissions();
-    const list = save.miss.list.map((m: any, k: number) => { const M = MISSIONS[m.i]; return { k, txt: M.txt, n: M.n, prog: Math.min(M.n, m.prog), coins: M.coins, done: m.prog >= M.n, claimed: m.claimed }; });
-    return { list, allClaimed: list.every((m: any) => m.claimed), bonus: save.miss.bonus, bonusGems: MISSION_BONUS_GEMS, coins: save.coins, gems: save.gems };
-  }
-  function dailyInfo() { const d = dailyState(); return { can: d.can, day: d.day, streak: d.streak, days: DAILY.map((r, i) => ({ i, txt: r.txt, coins: r.coins, gems: r.gems, done: i < d.day || (!d.can && i === d.day), today: i === d.day })) }; }
-  function resInfo() { return result || { title: '', lines: [] }; }
+  function dailyInfo() { const d = dailyState(); return { can: d.can, day: d.day, days: DAILY.map((r, i) => ({ i, txt: r.txt, done: i < d.day || (!d.can && i === d.day), today: i === d.day })) }; }
+  function awayInfo() { return away ? { mins: away.mins, capped: away.capped, got: resList(away.got) } : { mins: 0, got: [] }; }
 
   /* ---------- ações das telas ---------- */
-  function btnSound(k?: string) { sfx(k === 'back' ? 'back' : 'click'); }
-  function goMenu() { phase = 'over'; queue = []; startDemo(); only('menu'); }
   const act = {
-    btnSound,
-    openMap: () => only('map'), openDeck: () => only('deck'), openShop: () => only('shop'), openMissions: () => only('missions'), openDaily: () => { ui.show.daily = true; emit(); }, closeDaily: () => { ui.show.daily = false; emit(); },
-    playLevel: (i: number) => { i = i | 0; if (i >= (save.unl | 0)) { sfx('nope'); toast('Vença a fase anterior para liberar.'); return; } startGame('camp', i); },
-    playEndless: () => startGame('endless', 0),
-    selCard, endTurn: () => { if (phase === 'player') { sfx('click'); endTurn(); } }, recycle,
-    pause: () => { if (ui.show.play) { ui.show.pause = true; emit(); } }, resume: () => { ui.show.pause = false; emit(); },
-    restart: () => { ui.show.pause = false; startGame(mode === 'demo' ? 'camp' : mode, lvlIdx); },
-    quit: () => { ui.show.pause = false; goMenu(); },
-    resNext: () => { if (mode === 'camp' && lvlIdx + 1 < LEVELS.length && won) startGame('camp', lvlIdx + 1); else goMenu(); },
-    resRetry: () => startGame(mode === 'demo' ? 'camp' : mode, lvlIdx),
-    resMenu: () => { const m = mode; goMenu(); if (m === 'camp') only('map'); },
-    upgrade: (id: string) => {
-      const c = CARD[id]; if (!c) return; if (!unlocked(id)) { toast('Libera no nível ' + c.unlock + '.'); return; }
-      const lv = cardLvl(id); if (lv >= CARD_MAX) return; const p = upCost(id, lv);
-      if (save.coins < p) { sfx('nope'); toast('Faltam ' + (p - save.coins) + ' moedas.'); return; }
-      save.coins -= p; save.cards[id] = lv + 1; persist(); sfx('coin'); toast(c.name + ' agora é nível ' + (lv + 1) + '!'); emit();
-    },
-    buySkin: (id: string) => {
-      const s = SKINS.find(x => x.id === id); if (!s) return;
-      if (save.skins.includes(id)) { save.skin = id; persist(); sfx('click'); emit(); return; }
-      if (save.gems < s.price) { sfx('nope'); toast('Faltam ' + (s.price - save.gems) + ' geleias. Ganhe no prêmio diário e nas missões!'); return; }
-      save.gems -= s.price; save.skins.push(id); save.skin = id; persist(); sfx('prize'); toast('Visual ' + s.name + ' liberado!'); emit();
-    },
+    btnSound: (k?: string) => sfx(k === 'back' ? 'back' : 'click'),
+    collect: () => collectAll(), feed, learn, build, demolish, startMove,
+    closeBuild: () => { sel = -1; close('build'); },
+    open: (k: string) => { if (k === 'exped' && exp && exp.done) exp = null; only(k); },
+    closeScreen: (k: string) => { if (k === 'exped' && exp && exp.done) exp = null; close(k); },
+    travel,
+    expStart: (type: string, ids: number[]) => expStart(type, ids || []), expChoose, expEnd: () => { exp = null; close('exped'); },
     claimDaily: () => {
-      const d = dailyState(); if (!d.can) return;
-      const r = DAILY[d.day]; save.coins += r.coins; save.gems += r.gems;
-      save.daily = { last: today(), streak: d.streak + 1 }; persist(); sfx('prize');
-      toast('Dia ' + (d.day + 1) + ': você ganhou ' + r.txt + '!'); emit();
+      const d = dailyState(); if (!d.can) return; const r: any = DAILY[d.day];
+      if (r.bag) for (const k in r.bag) save.res[k as Res] = Math.min(cap(k as Res) + 50, (save.res[k as Res] || 0) + r.bag[k]);
+      if (r.xp) growXP(r.xp);
+      if (r.villager) recruit(['explorador', 'engenheiro', 'cuidador'][Math.floor(Math.random() * 3)]);
+      save.daily = { last: today(), streak: d.streak + 1 }; persist(); sfx('prize'); toast('Dia ' + (d.day + 1) + ': ' + r.txt + '!'); emit();
     },
-    claimMission: (k: number) => {
-      const m = save.miss.list[k]; if (!m || m.claimed) return; const M = MISSIONS[m.i]; if (m.prog < M.n) return;
-      m.claimed = true; save.coins += M.coins; persist(); sfx('coin'); toast('+' + M.coins + ' moedas!'); emit();
-    },
-    claimBonus: () => { if (save.miss.bonus || !save.miss.list.every((m: any) => m.claimed)) return; save.miss.bonus = true; save.gems += MISSION_BONUS_GEMS; persist(); sfx('prize'); toast('+' + MISSION_BONUS_GEMS + ' geleias por completar todas as missões!'); emit(); },
+    openDaily: () => { ui.show.daily = true; emit(); }, closeDaily: () => { ui.show.daily = false; emit(); },
+    closeAway: () => { ui.show.away = false; if (dailyState().can) ui.show.daily = true; emit(); },
     toggleSfx: () => { save.sfx = !save.sfx; pf.audio.setVolumes(save.sfx, save.mus); persist(); emit(); },
     toggleMus: () => { save.mus = !save.mus; pf.audio.setVolumes(save.sfx, save.mus); persist(); emit(); },
-    goMenu, back, onHide: () => { persist(); if (ui.show.play && phase !== 'over') { ui.show.pause = true; emit(); } }, persist,
+    resetAll: () => { save = fresh(); try { pf.storage.save(''); } catch (e) { } location?.reload?.(); },
+    back, onHide: () => persist(), persist,
   };
   function back(): boolean {
     const S = ui.show;
+    if (S.away) { act.closeAway(); return true; }
     if (S.daily) { act.closeDaily(); return true; }
-    if (S.pause) { act.resume(); return true; }
-    if (S.play) { act.pause(); return true; }
-    if (S.res) { act.resMenu(); return true; }
-    if (S.map || S.deck || S.shop || S.missions) { sfx('back'); only('menu'); return true; }
+    if (moving >= 0) { moving = -1; emit(); return true; }
+    if (S.exped && exp && !exp.done) { return true; }
+    for (const k of ['build', 'creature', 'people', 'exped', 'map']) if (S[k]) { if (k === 'build') act.closeBuild(); else act.closeScreen(k); sfx('back'); return true; }
     return false;
   }
 
-  startDemo();
   const game = {
     ui,
     subscribe(f: () => void) { subs.add(f); return () => { subs.delete(f); }; },
     setLayout, tick, draw,
     input: { keyDown: (_c: string) => false, keyUp: (_c: string) => { }, ptrDown, ptrMove: (_e: PtrEv) => { }, ptrUp: (_e: PtrEv, _c?: boolean) => { } },
-    info: { menu: menuInfo, play: playInfo, map: mapInfo, deck: deckInfo, shop: shopInfo, missions: missionsInfo, daily: dailyInfo, res: resInfo, isTouch: () => isTouch },
+    info: { city: cityInfo, build: buildInfo, creature: creatureInfo, people: peopleInfo, exped: expInfo, map: mapInfo, daily: dailyInfo, away: awayInfo, isTouch: () => pf.isTouch },
     act,
   };
-  (game as any).__dbg = { save, get honey() { return honey; }, set honey(v: number) { honey = v; }, get turn() { return turn; }, get phase() { return phase; }, get wasps() { return wasps; }, get hand() { return hand; }, cells: () => cells, get queenHp() { return queenHp; }, startGame, tapCell: (q: number, r: number) => { const c = cells.get(key(q, r)); if (c) tapCell(c); }, hexXY };
+  (game as any).__dbg = { get save() { return save; }, simulate, arrive, tapCell, get exp() { return exp; }, finishTravel: () => { if (save.travel) save.travel.start = now() - save.travel.dur * 1000; } };
   return game;
 }

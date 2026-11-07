@@ -45,14 +45,8 @@ async function start() {
   let last = '';
   const send = () => {
     const S = g.ui.show;
-    const info: any = { menu: g.info.menu() };
-    if (S.play || S.pause) info.play = g.info.play();
-    if (S.map) info.map = g.info.map();
-    if (S.deck) info.deck = g.info.deck();
-    if (S.shop) info.shop = g.info.shop();
-    if (S.missions) info.missions = g.info.missions();
-    if (S.daily) info.daily = g.info.daily();
-    if (S.res) info.res = g.info.res();
+    const info: any = { city: g.info.city() };
+    for (const k of ['build', 'creature', 'people', 'exped', 'map', 'daily', 'away']) if (S[k]) info[k] = g.info[k]();
     const msg = JSON.stringify({ t: 'snap', ui: { show: S, toast: g.ui.toast }, info });
     if (msg !== last) { last = msg; post(JSON.parse(msg)); }
   };

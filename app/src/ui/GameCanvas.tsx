@@ -14,7 +14,7 @@ export function GameCanvas({ game }: { game: Game; W: number; H: number; rot?: b
   return (
     <WebView
       ref={ref}
-      style={[StyleSheet.absoluteFill, { backgroundColor: '#2a1a0c' }]}
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#2e2418' }]}
       originWhitelist={['*']}
       source={{ html: GAME_HTML, baseUrl: 'https://localhost/' }}
       injectedJavaScriptBeforeContentLoaded={inject}

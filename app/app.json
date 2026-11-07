@@ -1,30 +1,30 @@
 {
   "expo": {
-    "name": "Colmeia de Guerra",
-    "slug": "colmeia-guerra",
+    "name": "Cidade nas Costas",
+    "slug": "cidade-nas-costas",
     "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#2a1a0c",
+    "backgroundColor": "#2e2418",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2a1a0c"
+      "backgroundColor": "#2e2418"
     },
     "androidStatusBar": {
       "hidden": true,
-      "backgroundColor": "#2a1a0c"
+      "backgroundColor": "#2e2418"
     },
     "androidNavigationBar": {
       "visible": "sticky-immersive",
-      "backgroundColor": "#2a1a0c"
+      "backgroundColor": "#2e2418"
     },
     "android": {
-      "package": "com.claude.colmeiaguerra",
+      "package": "com.claude.cidadenascostas",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#f8b820"
+        "backgroundColor": "#8cd468"
       },
       "permissions": [
         "INTERNET",
@@ -32,7 +32,7 @@
       ]
     },
     "ios": {
-      "bundleIdentifier": "com.claude.colmeiaguerra",
+      "bundleIdentifier": "com.claude.cidadenascostas",
       "supportsTablet": true,
       "requireFullScreen": true,
       "infoPlist": {
@@ -40,13 +40,13 @@
       }
     },
     "web": {
-      "name": "Colmeia de Guerra",
-      "shortName": "Colmeia de Guerra",
+      "name": "Cidade nas Costas",
+      "shortName": "Cidade nas Costas",
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/favicon.png",
-      "themeColor": "#2a1a0c",
-      "backgroundColor": "#2a1a0c"
+      "themeColor": "#2e2418",
+      "backgroundColor": "#2e2418"
     },
     "plugins": [
       [

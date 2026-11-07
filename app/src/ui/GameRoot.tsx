@@ -19,7 +19,7 @@ export function GameRoot({ game }: { game: Game }) {
   return (
     <GameCtx.Provider value={game}>
       <LayCtx.Provider value={lay}>
-        <View style={{ flex: 1, backgroundColor: '#2a1a0c', overflow: 'hidden' }} onLayout={e => onRootLayout(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}>
+        <View style={{ flex: 1, backgroundColor: '#2e2418', overflow: 'hidden' }} onLayout={e => onRootLayout(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}>
           <View style={[rotStyle, { overflow: 'hidden' }]}>
             <GameCanvas game={game} W={L.W} H={L.H} rot={L.rot} />
             <Screens />

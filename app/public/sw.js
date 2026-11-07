@@ -1,4 +1,4 @@
-const CACHE = 'colmeia-guerra-v1';
+const CACHE = 'cidade-costas-v1';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {

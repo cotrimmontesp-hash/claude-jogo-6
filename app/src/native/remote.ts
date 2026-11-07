@@ -7,12 +7,13 @@ import { getSaved, storeSave } from '../platform/make';
 
 export function createRemoteGame(): Game {
   const subs = new Set<() => void>();
-  const ui: any = { v: 0, show: { menu: true, map: false, deck: false, shop: false, missions: false, daily: false, play: false, pause: false, res: false }, toast: null };
-  const E0 = { menu: { coins: 0, gems: 0, lvl: 1, xp: 0, need: 100, stars: 0, maxStars: 45, bestWave: 0, dailyCan: false, missReady: 0, sfx: true, mus: true, queen: '', nextUnlock: null },
-    play: { honey: 0, turn: 1, maxTurns: 10, queenHp: 12, queenMax: 12, phase: 'player', mode: 'camp', kills: 0, hint: '', sel: -1, hand: [], selDesc: '', canRecycle: false, next: [], onBoard: 0, pile: 0 },
-    map: { coins: 0, gems: 0, lvl: 1, xp: 0, need: 100, regions: [], bestWave: 0 }, deck: { coins: 0, lvl: 1, xp: 0, need: 100, cards: [] }, shop: { gems: 0, coins: 0, skins: [] },
-    missions: { list: [], allClaimed: false, bonus: false, bonusGems: 3, coins: 0, gems: 0 }, daily: { can: false, day: 0, streak: 0, days: [] }, res: { title: '', lines: [] } };
-  let info: any = { ...E0 };
+  const ui: any = { v: 0, show: { city: true, build: false, creature: false, people: false, exped: false, map: false, daily: false, away: false }, toast: null };
+  let info: any = {
+    city: { res: [], region: '', lvl: 1, ready: 0, goal: '', moving: false, hungry: false, people: 3, homes: 5, free: 3, traveling: false, dailyCan: false, sfx: true, mus: true },
+    build: { mode: 'none' }, creature: { lvl: 1, max: 6, xp: 0, need: 40, feed: 20, food: 0, grid: '', nextGrid: '', oficina: false, abilities: [] },
+    people: { homes: 5, wait: 0, list: [], roles: [] }, exped: { region: '', danger: 0, traveling: false, types: [], loot: [], torre: false, people: [], stage: 'pick' },
+    map: { nodes: [], lines: [], traveling: false }, daily: { can: false, day: 0, days: [] }, away: { mins: 0, got: [] },
+  };
   let sendRaw: ((o: any) => void) | null = null;
   const queue: any[] = [];
   let ready = false;
@@ -22,7 +23,7 @@ export function createRemoteGame(): Game {
   const optimistic: { [k: string]: (...a: any[]) => void } = {};
   const back = () => {
     const S = ui.show;
-    if (S.daily || S.pause || S.play || S.res || S.map || S.deck || S.shop || S.missions) { post({ t: 'act', k: 'back', a: [] }); return true; }
+    if (S.away || S.daily || S.build || S.creature || S.people || S.exped || S.map) { post({ t: 'act', k: 'back', a: [] }); return true; }
     return false;
   };
   const act: any = new Proxy({}, {
@@ -40,8 +41,8 @@ export function createRemoteGame(): Game {
     tick() { }, draw() { },
     input: { keyDown: () => false, keyUp() { }, ptrDown: () => false, ptrMove() { }, ptrUp() { } },
     info: {
-      menu: () => info.menu, play: () => info.play, map: () => info.map, deck: () => info.deck, shop: () => info.shop,
-      missions: () => info.missions, daily: () => info.daily, res: () => info.res, isTouch: () => true,
+      city: () => info.city, build: () => info.build, creature: () => info.creature, people: () => info.people, exped: () => info.exped,
+      map: () => info.map, daily: () => info.daily, away: () => info.away, isTouch: () => true,
     },
     act,
     /* ligação com a WebView (usado pela tela do jogo) */

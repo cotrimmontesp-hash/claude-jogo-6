@@ -1,7 +1,7 @@
 /* Celular: o progresso fica salvo no AsyncStorage (o jogo em si roda na WebView, ver src/webgame). */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SKEY = 'colmeia-guerra-v1';
+const SKEY = 'cidade-costas-v1';
 let saved: string | null = null;
 
 /** lê o progresso salvo antes do jogo começar */

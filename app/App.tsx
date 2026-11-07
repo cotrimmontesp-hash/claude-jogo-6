@@ -1,4 +1,4 @@
-/* Colmeia de Guerra — app em React Native + Expo + TypeScript.
+/* Cidade nas Costas — app em React Native + Expo + TypeScript.
    Do mesmo código saem o site/PWA (React Native Web, na Vercel) e os apps (EAS: APK/AAB e IPA). */
 import React, { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
@@ -27,7 +27,7 @@ export default function App() {
       <StatusBar hidden />
       <KeepAwake />
       <Orientation />
-      {game ? <GameRoot game={game} /> : <View style={{ flex: 1, backgroundColor: '#2a1a0c' }} />}
+      {game ? <GameRoot game={game} /> : <View style={{ flex: 1, backgroundColor: '#2e2418' }} />}
     </SafeAreaProvider>
   );
 }
