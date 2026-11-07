@@ -243,7 +243,7 @@ function Exped() {
   const chip = (on: boolean, busy: boolean) => ({ width: 82, borderRadius: 12, borderWidth: 3, borderColor: on ? C.coral : C.ink, backgroundColor: busy ? '#ddd0b8' : on ? '#ffe8c8' : '#fff', padding: 3, alignItems: 'center' as const, opacity: busy ? .6 : 1 });
   return (
     <Ov dim>
-      <Card maxW={800} scroll={false}>
+      <Card maxW={800} scroll={e.stage === 'done'}>
         <Head title={'EXPEDIÇÃO · ' + e.region} onClose={() => game.act.closeScreen('exped')} />
         {e.stage === 'pick' ? <>
           <View style={{ flexDirection: 'row', gap: 6, alignSelf: 'stretch' }}>
