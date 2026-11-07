@@ -67,6 +67,7 @@ export const EVOLVE_AT = [4, 8]; /* níveis em que o bicho evolui (fica maior e 
 export const STAGE_NAMES = ['filhote', 'jovem', 'adulto'];
 export function beastXP(lvl: number) { return 20 + lvl * 18; }
 export function feedCost(lvl: number) { return 10 + lvl * 6; }
+export const TRAIT_WHO: { [k: string]: string } = { nadar: 'bicho que nada', escalar: 'bicho que escala', voar: 'bicho que voa', deserto: 'bicho do deserto', forca: 'bicho forte', faro: 'bicho de faro', visao: 'bicho de olho bom' };
 export const TRAIT_NAME: { [k: string]: string } = { nadar: 'Nada', escalar: 'Escala', voar: 'Voa', deserto: 'Aguenta deserto', forca: 'Força', faro: 'Faro', visao: 'Visão' };
 
 /* ---------- regiões (expedições) ---------- */

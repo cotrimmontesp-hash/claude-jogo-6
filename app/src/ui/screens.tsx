@@ -261,7 +261,7 @@ function Exped() {
             <B size={11} w="black" color={C.sub}>{'Gasta ' + e.food + ' comida e ' + e.water + ' água' + (e.waterCamel < e.water ? ' (com camelo: ' + e.waterCamel + ')' : '')}</B>
             <B size={11} w="black" color={e.danger > 10 ? C.coral : C.sub}>{'Perigo ' + e.danger + '%' + (e.torre ? ' · Torre +' + e.torre + '%' : '')}</B>
           </View>
-          {(e.need.length > 0 || e.beastLvl > 0) && <B size={11} w="black" color={C.coral} style={{ alignSelf: 'flex-start' }}>{'Precisa levar: ' + e.need.map((n: string) => 'bicho que ' + n.toLowerCase()).concat(e.beastLvl ? ['bicho nível ' + e.beastLvl] : []).join(' + ')}</B>}
+          {(e.need.length > 0 || e.beastLvl > 0) && <B size={11} w="black" color={C.coral} style={{ alignSelf: 'flex-start' }}>{'Precisa levar: ' + e.need.slice().concat(e.beastLvl ? ['bicho nível ' + e.beastLvl] : []).join(' + ')}</B>}
           <B size={11} w="black" color={C.sub} style={{ alignSelf: 'flex-start' }}>MORADORES (até 3) E BICHOS (até 2)</B>
           <ScrollView horizontal style={{ alignSelf: 'stretch', flexGrow: 0 }} contentContainerStyle={{ gap: 5 }}>
             {e.people.map((v: any) => (
@@ -359,7 +359,7 @@ function MapScreen() {
                 {n.seen && !n.explored && n.miss.length > 0 && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>🔒</T></View>}
                 {n.seen && !n.explored && !n.miss.length && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>❓</T></View>}
               </View>
-              <View style={{ width: 120, alignItems: 'center', marginTop: 2 }}><T size={11} stroke={3} center lines={1}>{n.name}</T></View>
+              <View pointerEvents="none" style={{ width: 120, alignItems: 'center', marginTop: 2 }}><T size={11} stroke={3} center lines={1}>{n.name}</T></View>
             </Pressable>
           );
         })}

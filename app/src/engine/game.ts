@@ -5,7 +5,7 @@
    (até 12 horas, sem perder nada). As telas em React Native leem `ui`/`info` e chamam `act`. */
 import {
   RES, RES_INFO, BASE_CAP, BUILDINGS, BUILD, BLVL_MAX, BLVL_PROD, upgradeCost, PLOTS, SQUARE, PEN,
-  BEASTS, BEAST, BEAST_MAX, EVOLVE_AT, STAGE_NAMES, beastXP, feedCost, TRAIT_NAME,
+  BEASTS, BEAST, BEAST_MAX, EVOLVE_AT, STAGE_NAMES, beastXP, feedCost, TRAIT_NAME, TRAIT_WHO,
   REGIONS, ROUTES, ROLES, NAMES, VXP, REST_S, EXPED, EVENTS, DAILY, OFFLINE_MAX_H, type Bag, type Res, type Trait,
 } from './data';
 import { villageGround, blockedPlot, bonfire, fence, building, beast as drawBeast, walker, text, setCanvasMaker, makeCanvas, iconImage } from './draw';
@@ -220,7 +220,7 @@ export function createGame(pf: Platform) {
   function missing(r: number, uids?: number[]) {
     const R = REGIONS[r], miss: string[] = [];
     const tr = uids ? teamTraits(uids) : teamTraits(save.pets.map((p: Pet) => p.uid));
-    for (const n of R.need || []) if (!tr.has(n)) miss.push('um bicho que ' + TRAIT_NAME[n].toLowerCase());
+    for (const n of R.need || []) if (!tr.has(n)) miss.push('um ' + TRAIT_WHO[n]);
     if (R.beastLvl) { const pool = save.pets.filter((p: Pet) => !uids || uids.includes(p.uid)); if (!pool.some((p: Pet) => p.lvl >= R.beastLvl!)) miss.push('um bicho nível ' + R.beastLvl); }
     return miss;
   }
@@ -475,7 +475,7 @@ export function createGame(pf: Platform) {
   function expInfo() {
     const R = REGIONS[exp ? exp.region : clamp(target, 0, 9)];
     const base = {
-      region: R.name, regionId: R.id, danger: Math.round(R.danger * 100), types: EXPED, loot: resList(R.loot), torre: sumLvl('torre') * 5, need: (R.need || []).map(t => TRAIT_NAME[t]), beastLvl: R.beastLvl || 0, explored: save.explored.includes(R.id),
+      region: R.name, regionId: R.id, danger: Math.round(R.danger * 100), types: EXPED, loot: resList(R.loot), torre: sumLvl('torre') * 5, need: (R.need || []).map(t => TRAIT_WHO[t]), beastLvl: R.beastLvl || 0, explored: save.explored.includes(R.id),
       wildHere: BEASTS.filter(b => b.where.includes(R.id)).map(b => b.name),
       people: save.vil.map((v: Villager) => ({ id: v.id, name: v.name, roleName: ROLES[v.role].name, col: ROLES[v.role].col, lvl: v.lvl, rest: Math.max(0, Math.ceil((v.rest - now()) / 1000)), img: iconImage('role', v.role, 64, v.seed) })),
       pets: save.pets.map((p: Pet) => ({ uid: p.uid, name: BEAST[p.id].name, lvl: p.lvl, traits: BEAST[p.id].traits.map(t => TRAIT_NAME[t]).join(', '), rest: Math.max(0, Math.ceil((p.rest - now()) / 1000)), img: petImg(p, 64) })),
@@ -486,7 +486,7 @@ export function createGame(pf: Platform) {
     if (!exp) return { ...b2, stage: 'pick' };
     if (exp.done) return { ...b2, stage: 'done', log: exp.log, reward: { ...exp.reward, loot: resList(exp.reward.loot), person: exp.reward.person ? ROLES[exp.reward.person].name : null, newPet: exp.reward.newPet ? BEAST[exp.reward.newPet].name : null, petImg: exp.reward.newPet ? petImg({ id: exp.reward.newPet, lvl: 1 }, 96) : '' } };
     const ev = exp.evs[exp.i];
-    const opt = (o: any) => ({ txt: o.txt, who: o.role ? ROLES[o.role].name : o.trait ? 'bicho que ' + TRAIT_NAME[o.trait].toLowerCase() : '', pct: Math.round(chance(o) * 100), has: o.role ? save.vil.some((v: Villager) => exp.team.includes(v.id) && v.role === o.role) : o.trait ? save.pets.some((p: Pet) => exp.pets.includes(p.uid) && BEAST[p.id].traits.includes(o.trait)) : false });
+    const opt = (o: any) => ({ txt: o.txt, who: o.role ? ROLES[o.role].name : o.trait ? TRAIT_WHO[o.trait] : '', pct: Math.round(chance(o) * 100), has: o.role ? save.vil.some((v: Villager) => exp.team.includes(v.id) && v.role === o.role) : o.trait ? save.pets.some((p: Pet) => exp.pets.includes(p.uid) && BEAST[p.id].traits.includes(o.trait)) : false });
     return { ...b2, stage: 'event', i: exp.i, n: exp.evs.length, txt: ev.txt, fera: ev.tag === 'fera', a: opt(ev.a), b: opt(ev.b), log: exp.log, team: save.vil.filter((v: Villager) => exp.team.includes(v.id)).map((v: Villager) => ({ k: 'v' + v.id, img: iconImage('role', v.role, 56, v.seed) })).concat(save.pets.filter((p: Pet) => exp.pets.includes(p.uid)).map((p: Pet) => ({ k: 'p' + p.uid, img: petImg(p, 56) }))) };
   }
   function dailyInfo() { const d = dailyState(); return { can: d.can, day: d.day, days: DAILY.map((r, i) => ({ i, txt: r.txt, done: i < d.day || (!d.can && i === d.day), today: i === d.day })) }; }
