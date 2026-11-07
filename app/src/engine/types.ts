@@ -21,7 +21,7 @@ export interface Ctx2D {
   fillRect(x: number, y: number, w: number, h: number): void;
   arc(x: number, y: number, r: number, a0: number, a1: number, ccw?: boolean): void;
   ellipse(x: number, y: number, rx: number, ry: number, rot: number, a0: number, a1: number, ccw?: boolean): void;
-  quadraticCurveTo(cx: number, cy: number, x: number, y: number): void;
+  quadraticCurveTo(cx: number, cy: number, x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, e: number, f: number): void;
   rotate(a: number): void;
   clip?(): void;
   setLineDash?(d: number[]): void;
@@ -36,7 +36,7 @@ export interface Ctx2D {
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): any;
 }
 
-export interface OffCanvas { width: number; height: number; getContext(kind: '2d'): Ctx2D; toDataURL?(type?: string): string }
+export interface OffCanvas { width: number; height: number; getContext(kind: '2d'): Ctx2D; toDataURL?(type?: string, q?: number): string }
 
 export interface Insets { t: number; r: number; b: number; l: number }
 

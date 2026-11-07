@@ -1,7 +1,7 @@
 /* Telas da Vila Selvagem em React Native: barra de materiais, botões, construir/melhorar,
    bichos, moradores, mapa das expedições, expedição, prêmio diário e "enquanto você estava fora". */
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Btn, C, Card, FONT, OText, Ov, Pix, XpBar, useGame, useInfo, useLay } from './kit';
 import { TOP_H, LEFT_W, BOTTOM_H } from '../engine/game';
 
@@ -335,37 +335,33 @@ function MapScreen() {
   const game = useGame(), lay = useLay();
   const m = useInfo(() => game.info.map());
   const [pick, setPick] = useState<number | null>(null);
-  const mw = lay.W - lay.ins.l - lay.ins.r - 40, mh = lay.H - lay.ins.t - lay.ins.b - 70;
-  const P = (n: any) => ({ x: 20 + n.x * (mw - 40), y: 10 + n.y * (mh - 50) });
+  const top = 52 + lay.ins.t, mw = lay.W - lay.ins.l - lay.ins.r - 16, mh = lay.H - top - lay.ins.b - 8;
+  const P = (n: any) => ({ x: (n.x * .9 + .05) * mw, y: (n.y * .84 + .08) * mh });
   const sel = pick != null ? m.nodes[pick] : null;
+  const panelLeft = sel ? P(sel).x > mw * .55 : false;
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3c8cc8' }]}>
-      <View style={{ position: 'absolute', left: 16 + lay.ins.l, right: 16 + lay.ins.r, top: 8 + lay.ins.t }}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3a2614' }]}>
+      <View style={{ position: 'absolute', left: 16 + lay.ins.l, right: 16 + lay.ins.r, top: 6 + lay.ins.t }}>
         <Head title="PARA ONDE VAMOS?" onClose={() => game.act.closeScreen('map')} />
       </View>
-      <View style={{ position: 'absolute', left: 20 + lay.ins.l, top: 56 + lay.ins.t, width: mw, height: mh }}>
-        {m.lines.map((l: any, i: number) => {
-          if (!l.seen) return null;
-          const a = P(m.nodes[l.a]), b = P(m.nodes[l.b]); const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
-          return <View key={i} style={{ position: 'absolute', left: (a.x + b.x) / 2 - len / 2, top: (a.y + b.y) / 2 - 2, width: len, height: 4, backgroundColor: 'rgba(255,255,255,.55)', borderRadius: 2, transform: [{ rotate: ang + 'rad' }] }} />;
-        })}
+      <View style={{ position: 'absolute', left: 8 + lay.ins.l, top, width: mw, height: mh, borderRadius: 14, overflow: 'hidden' }}>
+        {!!m.bg && <Image source={{ uri: m.bg }} style={{ position: 'absolute', left: 0, top: 0, width: mw, height: mh }} resizeMode="stretch" />}
         {m.nodes.map((n: any) => {
-          const p = P(n); const sz = n.home ? 58 : 48;
+          const p = P(n), sz = n.home ? 40 : 34, on = pick === n.id;
+          const badge = n.home ? '🏠' : n.explored ? '★' : !n.seen ? '?' : n.miss.length ? '🔒' : '!';
+          const bc = n.home ? C.gold : n.explored ? '#3c8c2c' : !n.seen ? '#8c96a4' : n.miss.length ? C.coral : '#f0a020';
           return (
-            <Pressable key={n.id} onPress={() => { game.act.btnSound('click'); setPick(n.id); }} style={{ position: 'absolute', left: p.x - sz / 2, top: p.y - sz / 2, alignItems: 'center', width: sz }} accessibilityLabel={n.name}>
-              <View style={{ width: sz, height: sz, borderRadius: sz / 2, borderWidth: 3, borderColor: pick === n.id ? '#fff' : n.home ? C.gold : C.ink, backgroundColor: n.seen ? n.col : '#8c9cac', alignItems: 'center', justifyContent: 'center', opacity: n.seen ? 1 : .7 }}>
-                <View style={{ width: sz * .5, height: sz * .5, borderRadius: sz, backgroundColor: n.seen ? n.col2 : '#6c7c8c' }} />
-                {n.home && <View style={{ position: 'absolute' }}><T size={20} stroke={4}>🏠</T></View>}
-                {n.seen && !n.explored && n.miss.length > 0 && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>🔒</T></View>}
-                {n.seen && !n.explored && !n.miss.length && <View style={{ position: 'absolute', right: -6, top: -6 }}><T size={14}>❓</T></View>}
+            <Pressable key={n.id} onPress={() => { game.act.btnSound('click'); setPick(n.id); }} hitSlop={14} style={{ position: 'absolute', left: p.x - 60, top: p.y - sz / 2, width: 120, alignItems: 'center' }} accessibilityLabel={n.name}>
+              <View style={{ width: sz, height: sz, borderRadius: sz / 2, borderWidth: on ? 4 : 3, borderColor: on ? '#fff' : C.ink, backgroundColor: bc, alignItems: 'center', justifyContent: 'center', opacity: n.seen ? 1 : .75 }}>
+                <T size={n.home ? 18 : 16} stroke={3}>{badge}</T>
               </View>
-              <View pointerEvents="none" style={{ width: 120, alignItems: 'center', marginTop: 2 }}><T size={11} stroke={3} center lines={1}>{n.name}</T></View>
+              {n.seen && <View pointerEvents="none" style={{ marginTop: 2, backgroundColor: on ? C.ink : 'rgba(46,36,24,.78)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}><B size={11} w="black" color="#fff" lines={1}>{n.name}</B></View>}
             </Pressable>
           );
         })}
       </View>
       {sel && (
-        <View style={[panel, { position: 'absolute', right: 12 + lay.ins.r, bottom: 10 + lay.ins.b, width: Math.min(340, lay.W * .42), padding: 10, gap: 4 }]}>
+        <View style={[panel, { position: 'absolute', [panelLeft ? 'left' : 'right']: 16 + (panelLeft ? lay.ins.l : lay.ins.r), bottom: 14 + lay.ins.b, width: Math.min(340, lay.W * .42), padding: 10, gap: 4 }]}>
           <T size={17} color={C.ink}>{sel.name + (sel.explored ? '' : sel.seen ? '  (inexplorado)' : '')}</T>
           <B size={12}>{sel.desc}</B>
           {sel.seen && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><B size={11} w="black" color={C.sub}>TEM:</B><Bag list={sel.loot} size={18} /></View>}

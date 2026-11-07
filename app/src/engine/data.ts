@@ -44,7 +44,7 @@ export const PLOTS: Plot[] = [
   { x: 160, y: 215, clear: { madeira: 100, metal: 20 }, block: 'arvores' },
 ];
 export const SQUARE = { x: 520, y: 305 }; /* praça com a fogueira */
-export const PEN = { x: 855, y: 430, rx: 85, ry: 64 }; /* cercado dos bichos */
+export const PEN = { x: 860, y: 430, rx: 96, ry: 70 }; /* cercado dos bichos */
 
 /* ---------- bichos ---------- */
 export type Trait = 'nadar' | 'escalar' | 'voar' | 'deserto' | 'forca' | 'faro' | 'visao';

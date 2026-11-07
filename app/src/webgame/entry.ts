@@ -42,11 +42,13 @@ async function start() {
   cv.addEventListener('pointercancel', (ev: any) => g.input.ptrUp(E(ev)));
   cv.addEventListener('contextmenu', (ev) => ev.preventDefault());
   /* estado das telas para o React Native (só quando muda) */
-  let last = '';
+  let last = '', lastBg = '';
   const send = () => {
     const S = g.ui.show;
     const info: any = { city: g.info.city() };
     for (const k of ['build', 'beasts', 'people', 'exped', 'map', 'daily', 'away']) if (S[k]) info[k] = g.info[k]();
+    /* a imagem do mapa é grande: só vai quando muda */
+    if (info.map) { if (info.map.bg === lastBg) info.map.bg = '='; else lastBg = info.map.bg; }
     const msg = JSON.stringify({ t: 'snap', ui: { show: S, toast: g.ui.toast }, info });
     if (msg !== last) { last = msg; post(JSON.parse(msg)); }
   };

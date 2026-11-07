@@ -54,7 +54,8 @@ export function createRemoteGame(): Game {
       else if (m.t === 'snap') {
         const u = m.ui || {};
         ui.show = u.show || ui.show; ui.toast = u.toast || null;
-        info = { ...info, ...(m.info || {}) };
+        const ni = m.info || {}; if (ni.map && ni.map.bg === '=') ni.map.bg = info.map.bg;
+        info = { ...info, ...ni };
         emit();
       }
       else if (m.t === 'save') storeSave(String(m.s || ''));

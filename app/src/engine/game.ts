@@ -8,7 +8,7 @@ import {
   BEASTS, BEAST, BEAST_MAX, EVOLVE_AT, STAGE_NAMES, beastXP, feedCost, TRAIT_NAME, TRAIT_WHO,
   REGIONS, ROUTES, ROLES, NAMES, VXP, REST_S, EXPED, EVENTS, DAILY, OFFLINE_MAX_H, type Bag, type Res, type Trait,
 } from './data';
-import { villageGround, blockedPlot, bonfire, fence, building, beast as drawBeast, walker, text, setCanvasMaker, makeCanvas, iconImage } from './draw';
+import { villageGround, blockedPlot, bonfire, fence, building, beast as drawBeast, walker, text, setCanvasMaker, makeCanvas, iconImage, mapImage, ambience } from './draw';
 import type { Platform, Ctx2D, Insets, PtrEv, OffCanvas } from './types';
 
 export type Game = ReturnType<typeof createGame>;
@@ -330,13 +330,13 @@ export function createGame(pf: Platform) {
   }
   /* bichos passeando no cercado */
   function roamTick(dt: number) {
-    if (roam.length !== save.pets.length) roam = save.pets.map((p: Pet) => { const a = Math.random() * 6.28; return { uid: p.uid, x: PEN.x + Math.cos(a) * PEN.rx * .5, y: PEN.y + Math.sin(a) * PEN.ry * .5, tx: PEN.x, ty: PEN.y, face: 1, wait: Math.random() * 3 }; });
+    if (roam.length !== save.pets.length) roam = save.pets.map((p: Pet, i: number) => { const a = i / save.pets.length * 6.28 + Math.random() * .5, rr = .35 + (i % 2) * .3; return { uid: p.uid, x: PEN.x + Math.cos(a) * PEN.rx * rr, y: PEN.y + Math.sin(a) * PEN.ry * rr, tx: PEN.x, ty: PEN.y, face: 1, wait: Math.random() * 3 }; });
     for (const r of roam) {
       const p = save.pets.find((x: Pet) => x.uid === r.uid); if (!p) continue;
       if (p.rest > now()) continue;
       if (r.wait > 0) { r.wait -= dt; continue; }
       const dx = r.tx - r.x, dy = r.ty - r.y, d = Math.hypot(dx, dy);
-      if (d < 3) { const a = Math.random() * 6.28, rr = Math.random() * .75; r.tx = PEN.x + Math.cos(a) * PEN.rx * rr; r.ty = PEN.y + Math.sin(a) * PEN.ry * rr; r.wait = 1 + Math.random() * 4; continue; }
+      if (d < 3) { let bx = PEN.x, by = PEN.y, bd = -1; for (let n = 0; n < 6; n++) { const a = Math.random() * 6.28, rr = .2 + Math.random() * .58, cx = PEN.x + Math.cos(a) * PEN.rx * rr, cy = PEN.y + Math.sin(a) * PEN.ry * rr; let m = 1e9; for (const o of roam) if (o !== r) m = Math.min(m, Math.hypot(o.x - cx, (o.y - cy) * 1.4)); if (m > bd) { bd = m; bx = cx; by = cy; } } r.tx = bx; r.ty = by; r.wait = 1 + Math.random() * 4; continue; }
       const sp = 22 * dt; r.x += dx / d * sp; r.y += dy / d * sp; r.face = dx >= 0 ? 1 : -1;
     }
   }
@@ -383,7 +383,7 @@ export function createGame(pf: Platform) {
       for (const r of roam) {
         const p = save.pets.find((x: Pet) => x.uid === r.uid); if (!p) continue;
         const [x, y] = P(r.x, r.y), resting = p.rest > now();
-        items.push({ y, f: () => { drawBeast(g, { ...BEAST[p.id] }, x, y, 44 * k, clock + r.uid, stageOf(p.lvl), r.face, !resting && r.wait <= 0); if (resting) text(g, 'z', x + 14 * k, y - 34 * k + Math.sin(clock * 2) * 3, 12 * k, '#fff', 3); } });
+        items.push({ y, f: () => { drawBeast(g, { ...BEAST[p.id] }, x, y, 54 * k, clock + r.uid, stageOf(p.lvl), r.face, !resting && r.wait <= 0); if (resting) text(g, 'z', x + 20 * k, y - 46 * k + Math.sin(clock * 2) * 3, 12 * k, '#fff', 3); } });
       }
       /* moradores */
       for (const w of walkers) {
@@ -395,6 +395,7 @@ export function createGame(pf: Platform) {
       }
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.f();
+      ambience(g, W, H, P, k, clock, new Date().getHours(), [sx, sy]);
       for (const f of floats) { g.globalAlpha = Math.min(1, f.t * 2); text(g, f.s, f.x, f.y, 18, f.c, 4); } g.globalAlpha = 1;
       if (bannerT > 0) { g.globalAlpha = Math.min(1, bannerT * 2); text(g, bannerS, W / 2 + LEFT_W / 2, TOP_H + 40, Math.min(30, W / 26), '#ffe070', 7); g.globalAlpha = 1; }
     } catch (e) { console.error(e); }
@@ -470,7 +471,7 @@ export function createGame(pf: Platform) {
       const explored = save.explored.includes(R.id), seen = reachable(R.id);
       return { id: R.id, name: seen ? R.name : '???', x: R.x, y: R.y, col: R.bg, col2: R.bg2, explored, seen, miss: seen ? missing(R.id) : [], desc: seen ? R.desc : 'Uma terra que ninguém conhece.', beasts: seen ? BEASTS.filter(b => b.where.includes(R.id)).map(b => b.name) : [], loot: seen ? resList(R.loot) : [], home: R.id === 0 };
     });
-    return { nodes, lines: ROUTES.map(([a, b]) => ({ a, b, seen: nodes[a].seen && nodes[b].seen })) };
+    return { nodes, lines: ROUTES.map(([a, b]) => ({ a, b, seen: nodes[a].seen && nodes[b].seen })), bg: mapImage(REGIONS, nodes.map(n => n.seen), nodes.map(n => n.explored), ROUTES) };
   }
   function expInfo() {
     const R = REGIONS[exp ? exp.region : clamp(target, 0, 9)];
