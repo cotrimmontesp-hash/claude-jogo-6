@@ -92,8 +92,13 @@ function FireBtn() {
     <Pressable onPressIn={() => set(true)} onPressOut={() => set(false)} accessibilityLabel="Atirar"
       style={{ width: 104, height: 104, borderRadius: 52, borderWidth: 5, borderColor: '#1c1408', backgroundColor: on ? '#c03030' : '#e04848', alignItems: 'center', justifyContent: 'center', transform: [{ scale: on ? .93 : 1 }] }}>
       <View style={{ position: 'absolute', left: 8, right: 8, top: 6, height: 36, borderRadius: 30, backgroundColor: 'rgba(255,255,255,.22)' }} />
-      <T size={34}>🔫</T>
-      <T size={14} stroke={3} style={{ marginTop: -4 }}>ATIRAR</T>
+      <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 4, borderColor: '#fff' }} />
+        <View style={{ position: 'absolute', width: 4, height: 48, backgroundColor: '#fff', borderRadius: 2 }} />
+        <View style={{ position: 'absolute', width: 48, height: 4, backgroundColor: '#fff', borderRadius: 2 }} />
+        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ffe060', borderWidth: 2, borderColor: '#1c1408' }} />
+      </View>
+      <T size={14} stroke={3} style={{ marginTop: 2 }}>ATIRAR</T>
     </Pressable>
   );
 }
