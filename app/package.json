@@ -11,7 +11,8 @@
     "build:web": "expo export -p web",
     "build:webgame": "node scripts/build-webgame.mjs",
     "typecheck": "tsc --noEmit",
-    "postinstall": "node scripts/build-webgame.mjs || true"
+    "postinstall": "node scripts/build-webgame.mjs || true",
+    "eas-build-post-install": "npx expo install --fix && node scripts/build-webgame.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/lilita-one": "0.2.3",

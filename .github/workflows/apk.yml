@@ -8,6 +8,8 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      HAS_EAS: ${{ secrets.EXPO_TOKEN != '' }}
     defaults:
       run:
         working-directory: app
@@ -42,7 +44,8 @@ jobs:
         with:
           name: apk
           path: BaseZumbi.apk
-      - name: Publicar APK
+      - name: Publicar APK (só quando o EAS ainda não está ligado)
+        if: env.HAS_EAS != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}

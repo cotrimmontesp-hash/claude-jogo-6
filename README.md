@@ -20,4 +20,6 @@ deixar a base cada vez mais forte.
 - Se a base cair, você tenta a onda de novo e fica com as moedas.
 
 App em **React Native + Expo + TypeScript** (pasta `app/`): site/PWA na Vercel (React Native Web) e apps
-pelo EAS (APK/AAB e IPA). O workflow "Gerar APK" monta um APK a cada envio e testa num Android virtual.
+pelo EAS (APK/AAB e IPA): o workflow "Build EAS" roda a cada envio quando o segredo `EXPO_TOKEN` está no
+repositório e publica o APK. Sem o token, o workflow "Gerar APK" monta o APK. Os dois testam num Android virtual
+ou deixam o link de sempre: releases/latest/download/BaseZumbi.apk.

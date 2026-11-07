@@ -1,8 +1,11 @@
-# Builds das lojas pelo EAS (Expo). Precisa do segredo EXPO_TOKEN no repositório.
-#  - Android: APK (perfil preview) ou AAB para a Play Store (perfil production)
-#  - iPhone: IPA (precisa de conta de desenvolvedor da Apple ligada à conta da Expo)
-name: Build EAS (lojas)
+# Builds pelo EAS (Expo). Roda a cada envio para o main e também pelo botão "Run workflow".
+# Precisa do segredo EXPO_TOKEN no repositório (Settings > Secrets and variables > Actions).
+#  - Android: APK (perfil preview), publicado como BaseZumbi.apk no link de sempre
+#  - Lojas: AAB (Play Store) e IPA (iPhone, precisa de conta da Apple) pelo perfil production
+name: Build EAS
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       platform:
@@ -13,29 +16,59 @@ on:
         description: 'preview (APK) ou production (AAB/IPA para as lojas)'
         default: preview
         required: true
+permissions:
+  contents: write
 jobs:
   eas:
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      PLATFORM: ${{ github.event.inputs.platform || 'android' }}
+      PROFILE: ${{ github.event.inputs.profile || 'preview' }}
     defaults:
       run:
         working-directory: app
     steps:
+      - name: Conferir o EXPO_TOKEN
+        id: tok
+        working-directory: .
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "::warning::Falta o segredo EXPO_TOKEN; o APK continua saindo pelo workflow Gerar APK."; echo "ok=0" >> $GITHUB_OUTPUT; else echo "ok=1" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v4
+        if: steps.tok.outputs.ok == '1'
       - uses: actions/setup-node@v4
+        if: steps.tok.outputs.ok == '1'
         with:
           node-version: 20
-      - name: Conferir o EXPO_TOKEN
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Falta o segredo EXPO_TOKEN (Settings > Secrets > Actions)"; exit 1; fi
       - uses: expo/expo-github-action@v8
+        if: steps.tok.outputs.ok == '1'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Instalar pacotes
+        if: steps.tok.outputs.ok == '1'
         run: npm install --no-audit --no-fund
-      - name: Ligar o projeto à conta da Expo (só na primeira vez)
-        run: eas init --non-interactive --force || true
-      - name: Build
-        run: eas build --platform ${{ github.event.inputs.platform }} --profile ${{ github.event.inputs.profile }} --non-interactive --no-wait
+      - name: Ligar o projeto à conta da Expo
+        if: steps.tok.outputs.ok == '1'
+        run: eas init --non-interactive --force
+      - name: Build no EAS
+        if: steps.tok.outputs.ok == '1'
+        run: |
+          eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --wait --json > ../eas.json
+          cat ../eas.json
+      - name: Baixar o APK
+        if: steps.tok.outputs.ok == '1' && env.PROFILE == 'preview' && env.PLATFORM != 'ios'
+        working-directory: .
+        run: |
+          URL=$(jq -r '[.[] | select(.platform=="ANDROID")][0].artifacts.buildUrl' eas.json)
+          echo "APK: $URL"
+          curl -sSL "$URL" -o BaseZumbi.apk
+      - name: Publicar APK do EAS
+        if: steps.tok.outputs.ok == '1' && env.PROFILE == 'preview' && env.PLATFORM != 'ios'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: eas-v${{ github.run_number }}
+          name: Base Zumbi (EAS) v${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: BaseZumbi.apk
